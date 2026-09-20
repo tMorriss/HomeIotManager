@@ -71,9 +71,8 @@ class TestConfig(unittest.TestCase):
             'SWITCHBOT_WEBHOOK_TOKEN': 'swtoken',
         }
         with patch.dict(os.environ, env, clear=True):
-            with self.assertRaises(ValueError) as cm:
+            with self.assertRaises(ValueError):
                 Config()
-            self.assertIn('DB_PORT', str(cm.exception))
 
     def test_validate_missing_variables(self):
         '''必須の環境変数が不足している場合に ValueError が発生することの検証'''

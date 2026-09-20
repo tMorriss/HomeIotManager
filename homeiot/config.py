@@ -13,13 +13,7 @@ class Config:
     def __init__(self):
         raw_ips = os.getenv('TARGET_PHONE_IPS', '')
         self.target_phone_ips: List[str] = [ip.strip() for ip in raw_ips.split(',') if ip.strip()]
-
-        raw_port = os.getenv('DB_PORT', '')
-        try:
-            self.db_port: int = int(raw_port)
-        except ValueError:
-            self.db_port = 0
-
+        self.db_port: int = int(os.getenv('DB_PORT', 0))
         self.db_host: str = os.getenv('DB_HOST', '')
         self.db_user: str = os.getenv('DB_USER', '')
         self.db_pass: str = os.getenv('DB_PASS', '')
