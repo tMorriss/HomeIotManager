@@ -71,8 +71,6 @@ HomeIotManager/
 # 1. リント・スタイルチェック
 $ tox -e lint
 
-# 2. 単体テスト & カバレッジ計測
-$ tox -e unittest
 ```
 
 ---

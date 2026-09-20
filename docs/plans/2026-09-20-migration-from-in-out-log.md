@@ -55,7 +55,7 @@ flowchart TD
 
 | PR 番号 | タイトル / 対象 | 主な変更内容 | テスト・検証内容 |
 |---|---|---|---|
-| **PR 1** | プロジェクト基盤の構築 | ・ディレクトリ構造の作成<br>・`requirements/` 分割ファイル (`requirements_dev.txt`, `requirements_lint.txt`, `requirements_test.txt`) の配置（必要に応じて順次追加する方針）<br>・`tox.ini` (lint, unittest) の作成<br>・`scripts/check_filenames.py` の作成<br>・`.github/workflows/ci.yml` (GitHub Actions CI)<br>・`.gitignore`, `.env.example`, `README.md` | `tox -e lint` 疎通確認、GitHub Actions CI の動作確認 |
+| **PR 1** | プロジェクト基盤の構築 | ・ディレクトリ構造の作成<br>・`requirements/` 分割ファイル (`requirements_dev.txt`, `requirements_lint.txt`) の配置（必要に応じて順次追加する方針）<br>・`tox.ini` (lint) の作成<br>・`scripts/check_filenames.py` の作成<br>・`.github/workflows/ci.yml` (GitHub Actions CI)<br>・`.gitignore`, `.env.example`, `README.md` | `tox -e lint` 疎通確認、GitHub Actions CI の動作確認 |
 | **PR 2** | 設定管理 & DBアクセス層 | ・`homeiot/constants.py`（動作パラメータの1箇所集約）<br>・`homeiot/config.py`（環境変数ローダー）<br>・`homeiot/db/connector.py`（MySQLパラメータバインドDAO） | 設定読み込みの単体テスト、DB クエリ発行・モックテスト（`tests/test_config.py`, `tests/test_db.py`） |
 | **PR 3** | 外部IoT連携クライアント層 | ・`homeiot/clients/ping.py`（スマホICMP Ping判定）<br>・`homeiot/clients/hue.py`（Philips Hue ローカルREST API）<br>・`homeiot/clients/ifttt.py`（ルンバ/照明 IFTTT Webhook）<br>・`homeiot/clients/switchbot.py`（SwitchBot API/Webhookパース） | 各外部通信のモック単体テスト（`tests/test_clients.py` 等） |
 | **PR 4** | コアビジネスロジック層 | ・`homeiot/services/home_service.py`（在宅・外出時の家電制御判定）<br>・`homeiot/services/presence_service.py`（スマホ・センサー状態統合） | 現行 `test_check.py` のシナリオ（時間帯・閾値・在宅判定・ルンバロック）を網羅した単体テスト（目標カバレッジ 100%） |

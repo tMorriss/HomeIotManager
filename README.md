@@ -15,13 +15,12 @@ HomeIotManager/
 │   └── __init__.py
 ├── requirements/                # 依存パッケージ定義
 │   ├── requirements_dev.txt     # 開発環境用 (tox)
-│   ├── requirements_lint.txt    # リント・静的解析用 (flake8 等)
-│   └── requirements_test.txt    # テスト用 (coverage 等)
+│   └── requirements_lint.txt    # リント・静的解析用 (flake8 等)
 ├── scripts/                     # 開発・運用サポートスクリプト
 │   └── check_filenames.py       # スネークケースファイル名チェック
 ├── docs/                        # ドキュメント (architecture.md, work_history.md, plans/)
 ├── AGENTS.md                    # エージェント & 開発者向けガイド
-├── tox.ini                      # tox (lint / unittest) 設定
+├── tox.ini                      # tox 設定
 ├── .env.example                 # 環境変数サンプル
 └── README.md                    # 本ドキュメント
 ```
@@ -30,7 +29,7 @@ HomeIotManager/
 
 ## 2. 開発・テスト手順
 
-本プロジェクトでは `tox` を使用してリントチェックおよび単体テストを実行します。
+本プロジェクトでは `tox` を使用してリントチェックを実行します。
 
 ### セットアップ
 
@@ -43,17 +42,11 @@ source .venv/bin/activate
 pip install -r requirements/requirements_dev.txt
 ```
 
-### テスト・リントの実行
+### リントの実行
 
 ```bash
 # リント・静的解析 (flake8 & check_filenames.py) の実行
 tox -e lint
-
-# 単体テスト & カバレッジ計測の実行
-tox -e unittest
-
-# すべての環境を連続実行
-tox
 ```
 
 ---
