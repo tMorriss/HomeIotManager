@@ -12,7 +12,7 @@ from homeiot import constants
 class Config:
     '''アプリケーション設定クラス'''
 
-    def __init__(self, validate: bool = False):
+    def __init__(self):
         raw_ips = os.getenv('TARGET_PHONE_IPS', '')
         self.target_phone_ips: List[str] = [ip.strip() for ip in raw_ips.split(',') if ip.strip()]
 
@@ -32,8 +32,7 @@ class Config:
         self.switchbot_webhook_token: str = os.getenv('SWITCHBOT_WEBHOOK_TOKEN', '')
         self.podman_user: Optional[str] = os.getenv('PODMAN_USER')
 
-        if validate:
-            self.validate()
+        self.validate()
 
     def validate(self) -> None:
         '''必須設定のバリデーションを行います。'''

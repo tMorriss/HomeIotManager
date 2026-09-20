@@ -20,6 +20,12 @@ class TestDBConnector(unittest.TestCase):
             'DB_USER': 'mock_user',
             'DB_PASS': 'mock_pass',
             'DB_NAME': 'mock_db',
+            'TARGET_PHONE_IPS': '192.168.1.10',
+            'HUE_BRIDGE_IP': '192.168.1.20',
+            'HUE_API_USER': 'hueuser',
+            'HUE_ON_SCENE_ID': 'scene123',
+            'IFTTT_WEBHOOK_KEY': 'iftttkey',
+            'SWITCHBOT_WEBHOOK_TOKEN': 'swtoken',
         }
         with patch.dict(os.environ, env):
             self.config = Config()
