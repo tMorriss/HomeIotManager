@@ -1,0 +1,2 @@
+'''HomeIotManager - テストパッケージ
+'''
