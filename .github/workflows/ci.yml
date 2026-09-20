@@ -24,6 +24,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements/requirements_dev.txt
 
-      - name: Run tox
+      - name: Run lint
         run: |
-          tox
+          tox -e lint
+
+      - name: Run unittest
+        run: |
+          tox -e unittest
