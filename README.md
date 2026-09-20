@@ -19,8 +19,6 @@ HomeIotManager/
 │   └── requirements_test.txt    # テスト用 (coverage 等)
 ├── scripts/                     # 開発・運用サポートスクリプト
 │   └── check_filenames.py       # スネークケースファイル名チェック
-├── tests/                       # 単体テスト
-│   └── test_placeholder.py
 ├── docs/                        # ドキュメント (architecture.md, work_history.md, plans/)
 ├── AGENTS.md                    # エージェント & 開発者向けガイド
 ├── tox.ini                      # tox (lint / unittest) 設定

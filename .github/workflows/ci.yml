@@ -27,7 +27,3 @@ jobs:
       - name: Run lint
         run: |
           tox -e lint
-
-      - name: Run unittest
-        run: |
-          tox -e unittest
