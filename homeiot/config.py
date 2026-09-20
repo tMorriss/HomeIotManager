@@ -4,7 +4,7 @@
 '''
 
 import os
-from typing import List, Optional
+from typing import List
 
 from homeiot import constants
 
@@ -30,7 +30,6 @@ class Config:
         self.hue_on_scene_id: str = os.getenv('HUE_ON_SCENE_ID', '')
         self.ifttt_webhook_key: str = os.getenv('IFTTT_WEBHOOK_KEY', '')
         self.switchbot_webhook_token: str = os.getenv('SWITCHBOT_WEBHOOK_TOKEN', '')
-        self.podman_user: Optional[str] = os.getenv('PODMAN_USER')
 
         self.validate()
 

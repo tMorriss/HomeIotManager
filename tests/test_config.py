@@ -26,7 +26,6 @@ class TestConfig(unittest.TestCase):
             'HUE_ON_SCENE_ID': 'scene123',
             'IFTTT_WEBHOOK_KEY': 'iftttkey',
             'SWITCHBOT_WEBHOOK_TOKEN': 'swtoken',
-            'PODMAN_USER': 'poduser',
         }
         with patch.dict(os.environ, env, clear=True):
             config = Config()
@@ -41,7 +40,6 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(config.hue_on_scene_id, 'scene123')
             self.assertEqual(config.ifttt_webhook_key, 'iftttkey')
             self.assertEqual(config.switchbot_webhook_token, 'swtoken')
-            self.assertEqual(config.podman_user, 'poduser')
 
     def test_invalid_db_port_fallback(self):
         '''不正な DB_PORT の場合にデフォルト値へフォールバックされることの検証'''
