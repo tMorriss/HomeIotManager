@@ -4,7 +4,7 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,6 +21,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements/requirements_dev.txt
 
-      - name: Run lint
+      - name: Run tests (lint & unittest)
         run: |
-          tox -e lint
+          tox

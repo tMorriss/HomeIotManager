@@ -6,7 +6,7 @@ from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 from homeiot.config import Config
-from homeiot.db.connector import DBConnector
+from homeiot.db.connector import DBConnector, InOutValue, LastName
 
 
 class TestDBConnector(unittest.TestCase):
@@ -23,9 +23,15 @@ class TestDBConnector(unittest.TestCase):
         self.db = DBConnector(config=self.config)
 
     @patch('mysql.connector.connect')
-    def test_get_connection(self, mock_connect):
-        '''mysql.connector.connect が正しいパラメータで呼び出されることの検証'''
-        self.db.get_connection()
+    def test_get_connection_reuse(self, mock_connect):
+        '''接続オブジェクトが再利用され、close で切断されることの検証'''
+        mock_conn = MagicMock()
+        mock_conn.is_connected.return_value = True
+        mock_connect.return_value = mock_conn
+
+        conn1 = self.db.get_connection()
+        conn2 = self.db.get_connection()
+        self.assertEqual(conn1, conn2)
         mock_connect.assert_called_once_with(
             host='mock_host',
             port=3306,
@@ -35,15 +41,13 @@ class TestDBConnector(unittest.TestCase):
             autocommit=True,
         )
 
-    def test_init_without_config(self):
-        '''Config オブジェクトなしで初期化した場合の動作検証'''
-        db = DBConnector(host='custom_host', user='user', password='pass', database='db')
-        self.assertEqual(db.host, 'custom_host')
-        self.assertEqual(db.port, 3306)
+        self.db.close()
+        mock_conn.close.assert_called_once()
+        self.assertIsNone(self.db._conn)
 
     @patch('mysql.connector.connect')
-    def test_get_last_found(self, mock_connect):
-        '''get_last のレコードが存在する場合の検証'''
+    def test_get_last_found_with_enum(self, mock_connect):
+        '''LastName Enum を使用した get_last のレコード取得処理の検証'''
         now = datetime.now()
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = (now,)
@@ -51,7 +55,7 @@ class TestDBConnector(unittest.TestCase):
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        res = self.db.get_last('in')
+        res = self.db.get_last(LastName.IN)
         self.assertEqual(res, now)
         mock_cursor.execute.assert_called_once()
         self.assertIn('SELECT time FROM lasts WHERE name = %s', mock_cursor.execute.call_args[0][0])
@@ -70,15 +74,15 @@ class TestDBConnector(unittest.TestCase):
         self.assertIsNone(res)
 
     @patch('mysql.connector.connect')
-    def test_set_last(self, mock_connect):
-        '''set_last で指定された日時が保存されることの検証'''
+    def test_set_last_with_enum(self, mock_connect):
+        '''LastName Enum を使用した set_last の保存処理の検証'''
         now = datetime.now()
         mock_cursor = MagicMock()
         mock_conn = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        self.db.set_last('in', now)
+        self.db.set_last(LastName.IN, now)
         mock_cursor.execute.assert_called_once()
         self.assertEqual(mock_cursor.execute.call_args[0][1], ('in', now))
 
@@ -122,22 +126,8 @@ class TestDBConnector(unittest.TestCase):
         self.assertEqual(mock_cursor.execute.call_args[0][1], (today,))
 
     @patch('mysql.connector.connect')
-    def test_delete_roomy_lock_specific_date(self, mock_connect):
-        '''delete_roomy_lock で日付指定削除の検証'''
-        today = date.today()
-        mock_cursor = MagicMock()
-        mock_conn = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
-
-        self.db.delete_roomy_lock(today)
-        mock_cursor.execute.assert_called_once()
-        self.assertIn('WHERE date = %s', mock_cursor.execute.call_args[0][0])
-        self.assertEqual(mock_cursor.execute.call_args[0][1], (today,))
-
-    @patch('mysql.connector.connect')
-    def test_delete_roomy_lock_all(self, mock_connect):
-        '''delete_roomy_lock で全削除の検証'''
+    def test_delete_roomy_lock(self, mock_connect):
+        '''delete_roomy_lock で全削除が実行されることの検証'''
         mock_cursor = MagicMock()
         mock_conn = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
@@ -147,35 +137,17 @@ class TestDBConnector(unittest.TestCase):
         mock_cursor.execute.assert_called_once_with('DELETE FROM roomy_lock')
 
     @patch('mysql.connector.connect')
-    def test_add_in_out_log(self, mock_connect):
-        '''add_in_out_log でログが追加されることの検証'''
+    def test_add_in_out_log_with_enum(self, mock_connect):
+        '''InOutValue Enum を使用した add_in_out_log の追加処理の検証'''
         now = datetime.now()
         mock_cursor = MagicMock()
         mock_conn = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        self.db.add_in_out_log(1, now)
+        self.db.add_in_out_log(InOutValue.IN, now)
         mock_cursor.execute.assert_called_once()
         self.assertEqual(mock_cursor.execute.call_args[0][1], (now, 1))
-
-    @patch('mysql.connector.connect')
-    def test_get_recent_in_out_logs(self, mock_connect):
-        '''get_recent_in_out_logs でログリストが返されることの検証'''
-        now = datetime.now()
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.return_value = [(now, 1), (now, 0)]
-        mock_conn = MagicMock()
-        mock_conn.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_conn
-
-        logs = self.db.get_recent_in_out_logs(limit=5)
-        self.assertEqual(len(logs), 2)
-        self.assertEqual(logs[0], {'datetime': now, 'value': 1})
-        self.assertEqual(logs[1], {'datetime': now, 'value': 0})
-        mock_cursor.execute.assert_called_once_with(
-            'SELECT datetime, value FROM in_out ORDER BY datetime DESC LIMIT %s', (5,)
-        )
 
 
 if __name__ == '__main__':

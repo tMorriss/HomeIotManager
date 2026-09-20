@@ -1,2 +1,2 @@
-mysql-connector-python
+-r ../requirements.txt
 coverage

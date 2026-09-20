@@ -13,10 +13,10 @@ class TestConfig(unittest.TestCase):
     '''Config クラスのテスト'''
 
     def test_default_config(self):
-        '''環境変数が設定されていない場合のデフォルト値検証'''
+        '''環境変数が設定されていない場合の空文字デフォルト検証'''
         with patch.dict(os.environ, {}, clear=True):
-            config = Config.from_env()
-            self.assertEqual(config.db_host, 'localhost')
+            config = Config()
+            self.assertEqual(config.db_host, '')
             self.assertEqual(config.db_port, constants.DB_PORT)
             self.assertEqual(config.db_user, '')
             self.assertEqual(config.db_pass, '')
@@ -46,7 +46,7 @@ class TestConfig(unittest.TestCase):
             'PODMAN_USER': 'poduser',
         }
         with patch.dict(os.environ, env, clear=True):
-            config = Config.from_env(validate=True)
+            config = Config(validate=True)
             self.assertEqual(config.db_host, 'db.example.com')
             self.assertEqual(config.db_port, 3307)
             self.assertEqual(config.db_user, 'testuser')
@@ -64,7 +64,7 @@ class TestConfig(unittest.TestCase):
         '''不正な DB_PORT の場合にデフォルト値へフォールバックされることの検証'''
         env = {'DB_PORT': 'invalid_port'}
         with patch.dict(os.environ, env, clear=True):
-            config = Config.from_env()
+            config = Config()
             self.assertEqual(config.db_port, constants.DB_PORT)
 
     def test_validate_missing_variables(self):
