@@ -158,6 +158,19 @@ class TestDBConnector(unittest.TestCase):
         mock_cursor.execute.assert_called_once()
         self.assertEqual(mock_cursor.execute.call_args[0][1], (now, InOutValue.IN))
 
+    @patch('mysql.connector.connect')
+    def test_add_in_out_log_default_now(self, mock_connect):
+        '''add_in_out_log で日時未指定時に現在日時が使用されることの検証'''
+        mock_cursor = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        self.db.add_in_out_log(InOutValue.IN)
+        mock_cursor.execute.assert_called_once()
+        self.assertIsInstance(mock_cursor.execute.call_args[0][1][0], datetime)
+        self.assertEqual(mock_cursor.execute.call_args[0][1][1], InOutValue.IN)
+
 
 if __name__ == '__main__':
     unittest.main()
