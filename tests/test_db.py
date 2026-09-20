@@ -1,6 +1,7 @@
 '''HomeIotManager - データベースアクセス層単体テスト
 '''
 
+import os
 import unittest
 from datetime import date, datetime
 from unittest.mock import MagicMock, patch
@@ -13,13 +14,15 @@ class TestDBConnector(unittest.TestCase):
     '''DBConnector クラスの単体テスト'''
 
     def setUp(self):
-        self.config = Config(
-            db_host='mock_host',
-            db_port=3306,
-            db_user='mock_user',
-            db_pass='mock_pass',
-            db_name='mock_db',
-        )
+        env = {
+            'DB_HOST': 'mock_host',
+            'DB_PORT': '3306',
+            'DB_USER': 'mock_user',
+            'DB_PASS': 'mock_pass',
+            'DB_NAME': 'mock_db',
+        }
+        with patch.dict(os.environ, env):
+            self.config = Config()
         self.db = DBConnector(config=self.config)
 
     @patch('mysql.connector.connect')
