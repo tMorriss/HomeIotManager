@@ -3,10 +3,12 @@ name: CI
 on:
   pull_request:
 
+.job_template: &job_template
+  runs-on: ubuntu-latest
+
 jobs:
   lint:
-    runs-on: ubuntu-latest
-
+    <<: *job_template
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,8 +28,7 @@ jobs:
           tox -e lint
 
   unittest:
-    runs-on: ubuntu-latest
-
+    <<: *job_template
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
