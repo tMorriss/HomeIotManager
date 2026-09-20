@@ -1,12 +1,9 @@
 name: 'Set up Python Environment'
-description: 'Checkout repository, set up Python 3.12, and install dev dependencies'
+description: 'Set up Python 3.12 and install dev dependencies'
 
 runs:
   using: 'composite'
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
