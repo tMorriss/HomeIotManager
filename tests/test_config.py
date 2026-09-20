@@ -12,6 +12,20 @@ from homeiot.config import Config
 class TestConfig(unittest.TestCase):
     '''Config クラスのテスト'''
 
+    def test_constants_defined(self):
+        '''constants モジュールに定数が正しく定義されていることの検証'''
+        self.assertEqual(constants.CHECK_INTERVAL_SECONDS, 10)
+        self.assertEqual(constants.OUT_THRESHOLD_SECONDS, 300)
+        self.assertEqual(constants.HUE_THRESHOLD_SECONDS, 600)
+        self.assertEqual(constants.LAST_IN_THRESHOLD_SECONDS, 180)
+        self.assertEqual(constants.HUE_ON_BEGIN_HOUR, 17)
+        self.assertEqual(constants.HUE_ON_END_HOUR, 6)
+        self.assertEqual(constants.ROOMY_SLEEP_START_HOUR, 22)
+        self.assertEqual(constants.ROOMY_SLEEP_END_HOUR, 6)
+        self.assertEqual(constants.HUE_ON_GROUP_ID, '2')
+        self.assertEqual(constants.HUE_OFF_GROUP_ID, '3')
+        self.assertEqual(constants.WEB_PORT, 8930)
+
     def test_from_env_valid_values(self):
         '''全環境変数が設定されている場合の正常読み込み検証'''
         env = {
@@ -41,8 +55,8 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(config.ifttt_webhook_key, 'iftttkey')
             self.assertEqual(config.switchbot_webhook_token, 'swtoken')
 
-    def test_invalid_db_port_fallback(self):
-        '''不正な DB_PORT の場合にデフォルト値へフォールバックされることの検証'''
+    def test_invalid_db_port_raises_error(self):
+        '''不正な DB_PORT の場合に ValueError が発生することの検証'''
         env = {
             'DB_HOST': 'db.example.com',
             'DB_PORT': 'invalid_port',
@@ -57,8 +71,9 @@ class TestConfig(unittest.TestCase):
             'SWITCHBOT_WEBHOOK_TOKEN': 'swtoken',
         }
         with patch.dict(os.environ, env, clear=True):
-            config = Config()
-            self.assertEqual(config.db_port, constants.DB_PORT)
+            with self.assertRaises(ValueError) as cm:
+                Config()
+            self.assertIn('DB_PORT', str(cm.exception))
 
     def test_validate_missing_variables(self):
         '''必須の環境変数が不足している場合に ValueError が発生することの検証'''

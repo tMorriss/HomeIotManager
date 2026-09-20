@@ -6,8 +6,6 @@
 import os
 from typing import List
 
-from homeiot import constants
-
 
 class Config:
     '''アプリケーション設定クラス'''
@@ -16,10 +14,11 @@ class Config:
         raw_ips = os.getenv('TARGET_PHONE_IPS', '')
         self.target_phone_ips: List[str] = [ip.strip() for ip in raw_ips.split(',') if ip.strip()]
 
+        raw_port = os.getenv('DB_PORT', '')
         try:
-            self.db_port: int = int(os.getenv('DB_PORT', str(constants.DB_PORT)))
+            self.db_port: int = int(raw_port)
         except ValueError:
-            self.db_port = constants.DB_PORT
+            self.db_port = 0
 
         self.db_host: str = os.getenv('DB_HOST', '')
         self.db_user: str = os.getenv('DB_USER', '')
@@ -37,6 +36,7 @@ class Config:
         '''必須設定のバリデーションを行います。'''
         required_fields = [
             ('DB_HOST', self.db_host),
+            ('DB_PORT', self.db_port),
             ('DB_USER', self.db_user),
             ('DB_PASS', self.db_pass),
             ('DB_NAME', self.db_name),
