@@ -5,7 +5,7 @@ MySQL データベースとの接続およびパラメータバインドを用�
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional, Union
+from typing import Optional
 
 import mysql.connector
 
@@ -57,22 +57,20 @@ class DBConnector:
     def __del__(self):
         self.close()
 
-    def get_last(self, name: Union[LastName, str]) -> Optional[datetime]:
+    def get_last(self, name: LastName) -> Optional[datetime]:
         '''lasts テーブルから指定された名前の最終日時を取得します。'''
-        key_name = name.value if isinstance(name, LastName) else name
         query = 'SELECT time FROM lasts WHERE name = %s'
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute(query, (key_name,))
+            cursor.execute(query, (name,))
             row = cursor.fetchone()
             return row[0] if row else None
         finally:
             cursor.close()
 
-    def set_last(self, name: Union[LastName, str], event_time: Optional[datetime] = None) -> None:
+    def set_last(self, name: LastName, event_time: Optional[datetime] = None) -> None:
         '''lasts テーブルに指定された名前の最終日時を保存（INSERT ON DUPLICATE KEY UPDATE）します。'''
-        key_name = name.value if isinstance(name, LastName) else name
         if event_time is None:
             event_time = datetime.now()
         query = '''
@@ -83,7 +81,7 @@ class DBConnector:
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute(query, (key_name, event_time))
+            cursor.execute(query, (name, event_time))
         finally:
             cursor.close()
 
@@ -119,15 +117,14 @@ class DBConnector:
         finally:
             cursor.close()
 
-    def add_in_out_log(self, value: Union[InOutValue, int], event_time: Optional[datetime] = None) -> None:
+    def add_in_out_log(self, value: InOutValue, event_time: Optional[datetime] = None) -> None:
         '''in_out テーブルに入退室ログ（0: 外出, 1: 帰宅）を追加します。'''
-        val = value.value if isinstance(value, InOutValue) else value
         if event_time is None:
             event_time = datetime.now()
         query = 'INSERT INTO in_out (datetime, value) VALUES (%s, %s)'
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute(query, (event_time, val))
+            cursor.execute(query, (event_time, value))
         finally:
             cursor.close()

@@ -49,7 +49,7 @@ class TestDBConnector(unittest.TestCase):
         self.assertIsNone(self.db._conn)
 
     @patch('mysql.connector.connect')
-    def test_get_last_found_with_enum(self, mock_connect):
+    def test_get_last_found(self, mock_connect):
         '''LastName Enum を使用した get_last のレコード取得処理の検証'''
         now = datetime.now()
         mock_cursor = MagicMock()
@@ -62,7 +62,7 @@ class TestDBConnector(unittest.TestCase):
         self.assertEqual(res, now)
         mock_cursor.execute.assert_called_once()
         self.assertIn('SELECT time FROM lasts WHERE name = %s', mock_cursor.execute.call_args[0][0])
-        self.assertEqual(mock_cursor.execute.call_args[0][1], ('in',))
+        self.assertEqual(mock_cursor.execute.call_args[0][1], (LastName.IN,))
 
     @patch('mysql.connector.connect')
     def test_get_last_not_found(self, mock_connect):
@@ -73,11 +73,11 @@ class TestDBConnector(unittest.TestCase):
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        res = self.db.get_last('out')
+        res = self.db.get_last(LastName.OUT)
         self.assertIsNone(res)
 
     @patch('mysql.connector.connect')
-    def test_set_last_with_enum(self, mock_connect):
+    def test_set_last(self, mock_connect):
         '''LastName Enum を使用した set_last の保存処理の検証'''
         now = datetime.now()
         mock_cursor = MagicMock()
@@ -87,7 +87,7 @@ class TestDBConnector(unittest.TestCase):
 
         self.db.set_last(LastName.IN, now)
         mock_cursor.execute.assert_called_once()
-        self.assertEqual(mock_cursor.execute.call_args[0][1], ('in', now))
+        self.assertEqual(mock_cursor.execute.call_args[0][1], (LastName.IN, now))
 
     @patch('mysql.connector.connect')
     def test_set_last_default_now(self, mock_connect):
@@ -97,9 +97,9 @@ class TestDBConnector(unittest.TestCase):
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
 
-        self.db.set_last('in')
+        self.db.set_last(LastName.IN)
         mock_cursor.execute.assert_called_once()
-        self.assertEqual(mock_cursor.execute.call_args[0][1][0], 'in')
+        self.assertEqual(mock_cursor.execute.call_args[0][1][0], LastName.IN)
         self.assertIsInstance(mock_cursor.execute.call_args[0][1][1], datetime)
 
     @patch('mysql.connector.connect')
@@ -140,7 +140,7 @@ class TestDBConnector(unittest.TestCase):
         mock_cursor.execute.assert_called_once_with('DELETE FROM roomy_lock')
 
     @patch('mysql.connector.connect')
-    def test_add_in_out_log_with_enum(self, mock_connect):
+    def test_add_in_out_log(self, mock_connect):
         '''InOutValue Enum を使用した add_in_out_log の追加処理の検証'''
         now = datetime.now()
         mock_cursor = MagicMock()
@@ -150,7 +150,7 @@ class TestDBConnector(unittest.TestCase):
 
         self.db.add_in_out_log(InOutValue.IN, now)
         mock_cursor.execute.assert_called_once()
-        self.assertEqual(mock_cursor.execute.call_args[0][1], (now, 1))
+        self.assertEqual(mock_cursor.execute.call_args[0][1], (now, InOutValue.IN))
 
 
 if __name__ == '__main__':
