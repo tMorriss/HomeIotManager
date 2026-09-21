@@ -258,6 +258,7 @@ class TestHomeService(unittest.TestCase):
 
         self.mock_hue_client.turn_off_group.assert_not_called()
         self.mock_ifttt_client.turn_off_ceiling_light.assert_not_called()
+        self.mock_db.set_last.assert_any_call(LastName.HUE_OFF, now)
 
     @patch('homeiot.services.home_service.HomeService.is_present')
     def test_check_and_turn_off_lights_already_off_for_this_outing(self, mock_is_present):
