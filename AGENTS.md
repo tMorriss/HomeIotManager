@@ -40,19 +40,22 @@
 HomeIotManager/
 ├── AGENTS.md                                     # 本ガイド（開発規約・ワークフロー）
 └── docs/
+    ├── spec.md                                   # システム要件定義書 (要件・目的・機能要件)
     ├── architecture.md                           # システムアーキテクチャ・仕様書の正本
     ├── work_history.md                           # 作業履歴 (Work History) の一覧
     └── plans/
         └── YYYY-MM-DD-<overview>.md              # 改修案件ごとの個別計画書アーカイブ
 ```
 
-1. **仕様の正本 ([`docs/architecture.md`](docs/architecture.md))**:
+1. **要件定義書 ([`docs/spec.md`](docs/spec.md))**:
+   - システムの概要・目的および各機能要件（在宅/外出自動判定、スマート家電制御、ルンバ稼働抑制・Web UI、入退室ログ記録）を整理して記述します。
+2. **仕様の正本 ([`docs/architecture.md`](docs/architecture.md))**:
    - システム全体のアーキテクチャ図、Podman コンテナ設計、DB スキーマ、外部 API 仕様、設定・定数一覧などの **最新の正式仕様** を記述します。
    - 機能追加やアーキテクチャ変更が発生した場合は、必ず本ドキュメントを同期して更新してください。
-2. **改修案件ごとの個別計画書 ([`docs/plans/`](docs/plans/))**:
+3. **改修案件ごとの個別計画書 ([`docs/plans/`](docs/plans/))**:
    - 新規機能や大規模改修に着手する際は、着手前に `docs/plans/YYYY-MM-DD-<overview>.md`（例: `docs/plans/2026-09-20-migration-from-in-out-log.md`）を作成します。
    - 案件の背景、詳細設計、PR 分割計画、検証手順を記録し、完了後も恒久的な計画アーカイブとして保持します。
-3. **作業履歴マスター ([`docs/work_history.md`](docs/work_history.md))**:
+4. **作業履歴マスター ([`docs/work_history.md`](docs/work_history.md))**:
    - `docs/work_history.md` は **純粋な Work History（案件履歴一覧）** として運用します。
    - 案件の起票・進行・完了時に、日付・案件名・ステータス・計画書へのリンクを記録します（ActivePlan などの重複した詳細は記載せず、個別計画書に委ねます）。
 
