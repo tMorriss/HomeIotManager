@@ -9,6 +9,8 @@ from typing import Optional
 
 from homeiot import constants
 from homeiot.clients import ping
+from homeiot.clients.hue import HueClient
+from homeiot.clients.ifttt import IftttClient
 from homeiot.config import Config
 from homeiot.db.connector import DBConnector, InOutValue, LastName
 
@@ -22,8 +24,8 @@ class HomeService:
         self,
         config: Config,
         db_connector: DBConnector,
-        hue_client: Optional[object] = None,
-        ifttt_client: Optional[object] = None,
+        hue_client: Optional[HueClient] = None,
+        ifttt_client: Optional[IftttClient] = None,
     ):
         self.config = config
         self.db = db_connector
@@ -110,7 +112,7 @@ class HomeService:
 
             # 照明の自動点灯
             if self.is_lighting_time(current_time):
-                if self.hue_client and getattr(self.config, 'hue_on_scene_id', None):
+                if self.hue_client and self.config.hue_on_scene_id:
                     self.hue_client.activate_scene(
                         constants.HUE_ON_GROUP_ID, self.config.hue_on_scene_id
                     )
@@ -139,19 +141,27 @@ class HomeService:
                 logger.info('Departure confirmed. Executing departure sequence.')
                 self.db.set_last(LastName.OUT, current_time)
                 self.db.add_in_out_log(InOutValue.OUT, current_time)
+                # 最新の last_out を更新して下続処理に引き渡す
+                last_out = current_time
 
             # 消灯処理チェック (HUE_THRESHOLD_SECONDS 経過)
             if time_since_in >= constants.HUE_THRESHOLD_SECONDS:
-                self._check_and_turn_off_lights(current_time)
+                self._check_and_turn_off_lights(last_in, current_time)
 
             # ルンバ自動清掃開始チェック
-            self._check_and_start_roomy(current_time)
+            self._check_and_start_roomy(last_out or last_in, current_time)
 
-    def _check_and_turn_off_lights(self, current_time: datetime) -> None:
+    def _check_and_turn_off_lights(self, last_in: datetime, current_time: datetime) -> None:
         '''外出後の自動消灯処理'''
         if not self.hue_client and not self.ifttt_client:
             return
 
+        # 今回の外出後にすでに消灯処理済みであれば重複実行しない
+        last_hue_off = self.db.get_last(LastName.HUE_OFF)
+        if last_hue_off is not None and last_hue_off >= last_in:
+            return
+
+        # Hue の点灯状態確認（Hue クライアントがある場合）
         hue_is_on = True
         if self.hue_client:
             any_on = self.hue_client.is_any_on(constants.HUE_OFF_GROUP_ID)
@@ -166,7 +176,7 @@ class HomeService:
                 self.ifttt_client.turn_off_ceiling_light()
             self.db.set_last(LastName.HUE_OFF, current_time)
 
-    def _check_and_start_roomy(self, current_time: datetime) -> None:
+    def _check_and_start_roomy(self, last_departure: datetime, current_time: datetime) -> None:
         '''外出後のルンバ自動清掃開始処理'''
         if not self.ifttt_client:
             return
@@ -180,9 +190,9 @@ class HomeService:
         if lock_date is not None and lock_date >= current_time.date():
             return
 
-        # 3. 本日すでにルンバが稼働済みであれば実行しない
+        # 3. 今回の外出ですでにルンバが稼働済みであれば実行しない (1回の外出につき1回稼働)
         last_roomy = self.db.get_last(LastName.ROOMY)
-        if last_roomy is not None and last_roomy.date() == current_time.date():
+        if last_roomy is not None and last_roomy >= last_departure:
             return
 
         logger.info('Starting Roomy cleaning sequence.')

@@ -5,6 +5,8 @@ from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 from homeiot import constants
+from homeiot.clients.hue import HueClient
+from homeiot.clients.ifttt import IftttClient
 from homeiot.config import Config
 from homeiot.db.connector import InOutValue, LastName
 from homeiot.services.home_service import HomeService
@@ -19,8 +21,8 @@ class TestHomeService(unittest.TestCase):
         self.mock_config.hue_on_scene_id = 'scene-123'
         self.mock_db = MagicMock()
         self.mock_db.get_roomy_lock.return_value = None
-        self.mock_hue_client = MagicMock()
-        self.mock_ifttt_client = MagicMock()
+        self.mock_hue_client = MagicMock(spec=HueClient)
+        self.mock_ifttt_client = MagicMock(spec=IftttClient)
 
         self.service = HomeService(
             config=self.mock_config,
@@ -281,6 +283,27 @@ class TestHomeService(unittest.TestCase):
         self.mock_hue_client.turn_off_group.assert_not_called()
         self.mock_ifttt_client.turn_off_ceiling_light.assert_not_called()
 
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_check_and_turn_off_lights_already_off_for_this_outing(self, mock_is_present):
+        mock_is_present.return_value = False
+        now = datetime(2026, 9, 20, 14, 0, 0)
+        last_in = now - timedelta(seconds=constants.HUE_THRESHOLD_SECONDS + 10)
+        last_hue_off = now - timedelta(seconds=100)
+
+        def get_last_side_effect(name):
+            if name == LastName.IN:
+                return last_in
+            if name == LastName.HUE_OFF:
+                return last_hue_off
+            return None
+
+        self.mock_db.get_last.side_effect = get_last_side_effect
+
+        self.service.handle_presence_check(motion_detected=False, current_time=now)
+
+        self.mock_hue_client.turn_off_group.assert_not_called()
+        self.mock_ifttt_client.turn_off_ceiling_light.assert_not_called()
+
     def test_check_and_turn_off_lights_no_clients(self):
         service = HomeService(
             config=self.mock_config,
@@ -288,11 +311,12 @@ class TestHomeService(unittest.TestCase):
             hue_client=None,
             ifttt_client=None,
         )
-        service._check_and_turn_off_lights(datetime.now())
+        service._check_and_turn_off_lights(datetime.now() - timedelta(minutes=20), datetime.now())
         self.mock_db.set_last.assert_not_called()
 
     def test_check_and_start_roomy_skip_conditions(self):
         now = datetime(2026, 9, 20, 14, 0, 0)
+        last_departure = now - timedelta(minutes=30)
 
         # 1. No IFTTT client
         service_no_ifttt = HomeService(
@@ -300,23 +324,23 @@ class TestHomeService(unittest.TestCase):
             db_connector=self.mock_db,
             ifttt_client=None,
         )
-        service_no_ifttt._check_and_start_roomy(now)
+        service_no_ifttt._check_and_start_roomy(last_departure, now)
         self.mock_db.set_last.assert_not_called()
 
         # 2. Night sleeping time
         night_time = datetime(2026, 9, 20, 23, 0, 0)
-        self.service._check_and_start_roomy(night_time)
+        self.service._check_and_start_roomy(last_departure, night_time)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
         # 3. Locked by roomy_lock
         self.mock_db.get_roomy_lock.return_value = date(2026, 9, 20)
-        self.service._check_and_start_roomy(now)
+        self.service._check_and_start_roomy(last_departure, now)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
-        # 4. Already ran today
+        # 4. Already ran after last_departure
         self.mock_db.get_roomy_lock.return_value = None
-        self.mock_db.get_last.return_value = datetime(2026, 9, 20, 10, 0, 0)
-        self.service._check_and_start_roomy(now)
+        self.mock_db.get_last.return_value = last_departure + timedelta(minutes=5)
+        self.service._check_and_start_roomy(last_departure, now)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
     @patch('homeiot.services.home_service.HomeService.is_present')
