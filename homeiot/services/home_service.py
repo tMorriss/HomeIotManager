@@ -111,10 +111,9 @@ class HomeService:
 
             # 照明の自動点灯
             if self.is_lighting_time(current_time):
-                if self.config.hue_on_scene_id:
-                    self.hue_client.activate_scene(
-                        constants.HUE_ON_GROUP_ID, self.config.hue_on_scene_id
-                    )
+                self.hue_client.activate_scene(
+                    constants.HUE_ON_GROUP_ID, self.config.hue_on_scene_id
+                )
                 self.ifttt_client.turn_on_ceiling_light()
 
             # 入退室ログ記録
