@@ -258,6 +258,7 @@ class TestHomeService(unittest.TestCase):
 
         self.mock_hue_client.turn_off_group.assert_not_called()
         self.mock_ifttt_client.turn_off_ceiling_light.assert_not_called()
+        self.mock_db.set_last.assert_any_call(LastName.HUE_OFF, now)
 
     @patch('homeiot.services.home_service.HomeService.is_present')
     def test_check_and_turn_off_lights_already_off_for_this_outing(self, mock_is_present):
@@ -282,22 +283,22 @@ class TestHomeService(unittest.TestCase):
 
     def test_check_and_start_roomy_skip_conditions(self):
         now = datetime(2026, 9, 20, 14, 0, 0)
-        last_departure = now - timedelta(minutes=30)
+        last_in = now - timedelta(minutes=30)
 
         # 1. Night sleeping time
         night_time = datetime(2026, 9, 20, 23, 0, 0)
-        self.service._check_and_start_roomy(last_departure, night_time)
+        self.service._check_and_start_roomy(last_in, night_time)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
         # 2. Locked by roomy_lock
         self.mock_db.get_roomy_lock.return_value = date(2026, 9, 20)
-        self.service._check_and_start_roomy(last_departure, now)
+        self.service._check_and_start_roomy(last_in, now)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
-        # 3. Already ran after last_departure
+        # 3. Already ran after last_in
         self.mock_db.get_roomy_lock.return_value = None
-        self.mock_db.get_last.return_value = last_departure + timedelta(minutes=5)
-        self.service._check_and_start_roomy(last_departure, now)
+        self.mock_db.get_last.return_value = last_in + timedelta(minutes=5)
+        self.service._check_and_start_roomy(last_in, now)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
     @patch('homeiot.services.home_service.HomeService.is_present')

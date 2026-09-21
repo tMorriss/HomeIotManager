@@ -138,15 +138,13 @@ class HomeService:
                 logger.info('Departure confirmed. Executing departure sequence.')
                 self.db.set_last(LastName.OUT, current_time)
                 self.db.add_in_out_log(InOutValue.OUT, current_time)
-                # 最新の last_out を更新して下続処理に引き渡す
-                last_out = current_time
 
             # 消灯処理チェック (HUE_THRESHOLD_SECONDS 経過)
             if time_since_in >= constants.HUE_THRESHOLD_SECONDS:
                 self._check_and_turn_off_lights(last_in, current_time)
 
             # ルンバ自動清掃開始チェック
-            self._check_and_start_roomy(last_out or last_in, current_time)
+            self._check_and_start_roomy(last_in, current_time)
 
     def _check_and_turn_off_lights(self, last_in: datetime, current_time: datetime) -> None:
         '''外出後の自動消灯処理'''
@@ -156,18 +154,17 @@ class HomeService:
             return
 
         # Hue の点灯状態確認
-        hue_is_on = True
         any_on = self.hue_client.is_any_on(constants.HUE_OFF_GROUP_ID)
-        if any_on is False:
-            hue_is_on = False
+        hue_is_on = any_on is not False
 
         if hue_is_on:
             logger.info('Turning off lights after threshold.')
             self.hue_client.turn_off_group(constants.HUE_OFF_GROUP_ID)
             self.ifttt_client.turn_off_ceiling_light()
-            self.db.set_last(LastName.HUE_OFF, current_time)
 
-    def _check_and_start_roomy(self, last_departure: datetime, current_time: datetime) -> None:
+        self.db.set_last(LastName.HUE_OFF, current_time)
+
+    def _check_and_start_roomy(self, last_in: datetime, current_time: datetime) -> None:
         '''外出後のルンバ自動清掃開始処理'''
         # 1. 夜間・早朝時間帯は不可
         if self.is_roomy_sleeping_time(current_time):
@@ -180,7 +177,7 @@ class HomeService:
 
         # 3. 今回の外出ですでにルンバが稼働済みであれば実行しない (1回の外出につき1回稼働)
         last_roomy = self.db.get_last(LastName.ROOMY)
-        if last_roomy is not None and last_roomy >= last_departure:
+        if last_roomy is not None and last_roomy >= last_in:
             return
 
         logger.info('Starting Roomy cleaning sequence.')
