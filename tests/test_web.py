@@ -28,8 +28,8 @@ class TestWebApp(unittest.TestCase):
     def test_healthz_endpoint(self):
         '''GET /healthz の応答確認'''
         response = self.client.get('/healthz')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json(), {'status': 'ok'})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.get_data(as_text=True), '')
 
     def test_switchbot_webhook_unauthorized_missing_token(self):
         '''トークンなしで POST /switchbot/all を呼び出した場合 401 になるか'''

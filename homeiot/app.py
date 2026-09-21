@@ -6,7 +6,7 @@ Flask アプリケーションの生成、環境設定、Blueprint の登録を�
 import logging
 from typing import Optional
 
-from flask import Flask, jsonify
+from flask import Flask
 
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
@@ -14,6 +14,7 @@ from homeiot.clients.switchbot import SwitchBotClient
 from homeiot.config import Config
 from homeiot.db.connector import DBConnector
 from homeiot.services.home_service import HomeService
+from homeiot.web.health import health_bp
 from homeiot.web.webhook import webhook_bp
 
 logger = logging.getLogger(__name__)
@@ -52,10 +53,7 @@ def create_app(
     app.switchbot_client = switchbot_client
     app.home_service = home_service
 
+    app.register_blueprint(health_bp)
     app.register_blueprint(webhook_bp)
-
-    @app.route('/healthz', methods=['GET'])
-    def healthz():
-        return jsonify({'status': 'ok'}), 200
 
     return app
