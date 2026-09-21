@@ -177,30 +177,6 @@ class TestHomeService(unittest.TestCase):
         self.mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
 
     @patch('homeiot.services.home_service.HomeService.is_present')
-    def test_handle_presence_check_present_returning_without_hue_or_ifttt(self, mock_is_present):
-        mock_is_present.return_value = True
-        service = HomeService(
-            config=self.mock_config,
-            db_connector=self.mock_db,
-            hue_client=None,
-            ifttt_client=None,
-        )
-        now = datetime(2026, 9, 20, 19, 0, 0)
-        last_out = now - timedelta(minutes=10)
-
-        def get_last_side_effect(name):
-            if name == LastName.OUT:
-                return last_out
-            return None
-
-        self.mock_db.get_last.side_effect = get_last_side_effect
-
-        res = service.handle_presence_check(current_time=now)
-
-        self.assertTrue(res)
-        self.mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
-
-    @patch('homeiot.services.home_service.HomeService.is_present')
     def test_handle_presence_check_out_initial(self, mock_is_present):
         mock_is_present.return_value = False
         self.mock_db.get_last.return_value = None
@@ -304,40 +280,21 @@ class TestHomeService(unittest.TestCase):
         self.mock_hue_client.turn_off_group.assert_not_called()
         self.mock_ifttt_client.turn_off_ceiling_light.assert_not_called()
 
-    def test_check_and_turn_off_lights_no_clients(self):
-        service = HomeService(
-            config=self.mock_config,
-            db_connector=self.mock_db,
-            hue_client=None,
-            ifttt_client=None,
-        )
-        service._check_and_turn_off_lights(datetime.now() - timedelta(minutes=20), datetime.now())
-        self.mock_db.set_last.assert_not_called()
-
     def test_check_and_start_roomy_skip_conditions(self):
         now = datetime(2026, 9, 20, 14, 0, 0)
         last_departure = now - timedelta(minutes=30)
 
-        # 1. No IFTTT client
-        service_no_ifttt = HomeService(
-            config=self.mock_config,
-            db_connector=self.mock_db,
-            ifttt_client=None,
-        )
-        service_no_ifttt._check_and_start_roomy(last_departure, now)
-        self.mock_db.set_last.assert_not_called()
-
-        # 2. Night sleeping time
+        # 1. Night sleeping time
         night_time = datetime(2026, 9, 20, 23, 0, 0)
         self.service._check_and_start_roomy(last_departure, night_time)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
-        # 3. Locked by roomy_lock
+        # 2. Locked by roomy_lock
         self.mock_db.get_roomy_lock.return_value = date(2026, 9, 20)
         self.service._check_and_start_roomy(last_departure, now)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
-        # 4. Already ran after last_departure
+        # 3. Already ran after last_departure
         self.mock_db.get_roomy_lock.return_value = None
         self.mock_db.get_last.return_value = last_departure + timedelta(minutes=5)
         self.service._check_and_start_roomy(last_departure, now)

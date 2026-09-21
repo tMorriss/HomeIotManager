@@ -24,8 +24,8 @@ class HomeService:
         self,
         config: Config,
         db_connector: DBConnector,
-        hue_client: Optional[HueClient] = None,
-        ifttt_client: Optional[IftttClient] = None,
+        hue_client: HueClient,
+        ifttt_client: IftttClient,
     ):
         self.config = config
         self.db = db_connector
@@ -107,17 +107,15 @@ class HomeService:
         if is_returning:
             logger.info('Arrival detected. Executing arrival sequence.')
             # ルンバの帰還
-            if self.ifttt_client:
-                self.ifttt_client.dock_roomy()
+            self.ifttt_client.dock_roomy()
 
             # 照明の自動点灯
             if self.is_lighting_time(current_time):
-                if self.hue_client and self.config.hue_on_scene_id:
+                if self.config.hue_on_scene_id:
                     self.hue_client.activate_scene(
                         constants.HUE_ON_GROUP_ID, self.config.hue_on_scene_id
                     )
-                if self.ifttt_client:
-                    self.ifttt_client.turn_on_ceiling_light()
+                self.ifttt_client.turn_on_ceiling_light()
 
             # 入退室ログ記録
             self.db.add_in_out_log(InOutValue.IN, current_time)
@@ -153,34 +151,25 @@ class HomeService:
 
     def _check_and_turn_off_lights(self, last_in: datetime, current_time: datetime) -> None:
         '''外出後の自動消灯処理'''
-        if not self.hue_client and not self.ifttt_client:
-            return
-
         # 今回の外出後にすでに消灯処理済みであれば重複実行しない
         last_hue_off = self.db.get_last(LastName.HUE_OFF)
         if last_hue_off is not None and last_hue_off >= last_in:
             return
 
-        # Hue の点灯状態確認（Hue クライアントがある場合）
+        # Hue の点灯状態確認
         hue_is_on = True
-        if self.hue_client:
-            any_on = self.hue_client.is_any_on(constants.HUE_OFF_GROUP_ID)
-            if any_on is False:
-                hue_is_on = False
+        any_on = self.hue_client.is_any_on(constants.HUE_OFF_GROUP_ID)
+        if any_on is False:
+            hue_is_on = False
 
         if hue_is_on:
             logger.info('Turning off lights after threshold.')
-            if self.hue_client:
-                self.hue_client.turn_off_group(constants.HUE_OFF_GROUP_ID)
-            if self.ifttt_client:
-                self.ifttt_client.turn_off_ceiling_light()
+            self.hue_client.turn_off_group(constants.HUE_OFF_GROUP_ID)
+            self.ifttt_client.turn_off_ceiling_light()
             self.db.set_last(LastName.HUE_OFF, current_time)
 
     def _check_and_start_roomy(self, last_departure: datetime, current_time: datetime) -> None:
         '''外出後のルンバ自動清掃開始処理'''
-        if not self.ifttt_client:
-            return
-
         # 1. 夜間・早朝時間帯は不可
         if self.is_roomy_sleeping_time(current_time):
             return
