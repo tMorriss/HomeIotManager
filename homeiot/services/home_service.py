@@ -154,8 +154,7 @@ class HomeService:
             return
 
         # Hue の点灯状態確認
-        any_on = self.hue_client.is_any_on(constants.HUE_OFF_GROUP_ID)
-        hue_is_on = any_on is not False
+        hue_is_on = self.hue_client.is_any_on(constants.HUE_OFF_GROUP_ID) is not False
 
         if hue_is_on:
             logger.info('Turning off lights after threshold.')
