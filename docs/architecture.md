@@ -16,7 +16,7 @@
   - 帰宅時: 時間帯に応じた照明（Philips Hue、シーリングライト）の自動点灯、ルンバの自動帰還（Dock）
   - 外出時: 一定時間経過後の自動消灯、日中時間帯かつ未清掃時のルンバ自動清掃開始
 - **設定・状態管理**:
-  - ルンバ稼働抑制日（一時的な清掃停止日）の Web UI による設定・管理
+  - ルンバ稼働抑制日（一時的な清掃停止日）のデータベース管理および制御ロジック（※保守コスト削減のため Web UI 設定画面は非搭載）
   - MySQL による状態日時（`lasts`）、抑制日（`roomy_lock`）、入退室ログ（`in_out`）の永続化
 
 ---
@@ -71,8 +71,8 @@ MoneyBook のサイドカー構成を踏襲し、Kubernetes 互換の Pod 定義
   - ポート **8930** でリッスン（ホスト側の Nginx 等からプロキシ）
   - エンドポイント:
     - `POST /switchbot/all`: SwitchBot 人感センサー（`WoPresence`）の検知 Webhook 受信（トークン検証付き）
-    - `GET /settings`, `POST /settings`: ルンバ稼働抑制日（`roomy_lock`）の設定・確認 Web UI
     - `GET /healthz`: ヘルスチェック用エンドポイント
+  ※ 保守コスト削減のため、ルンバ稼働抑制日（`roomy_lock`）の Web UI 設定画面（`/settings`）は非搭載とし、DB テーブルおよびバックエンド判定ロジックのみを保持します。
 - **Worker コンテナ (`homeiot_worker`)**:
   - 常駐 Python プロセス
   - 10秒間隔（定数 `CHECK_INTERVAL_SECONDS`）で在宅監視ループを実行
