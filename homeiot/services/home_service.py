@@ -8,9 +8,9 @@ from datetime import datetime
 from typing import Optional
 
 from homeiot import constants
+from homeiot.clients import ping
 from homeiot.config import Config
 from homeiot.db.connector import DBConnector, InOutValue, LastName
-from homeiot.services.presence_service import PresenceService
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +22,21 @@ class HomeService:
         self,
         config: Config,
         db_connector: DBConnector,
-        presence_service: PresenceService,
         hue_client: Optional[object] = None,
         ifttt_client: Optional[object] = None,
     ):
         self.config = config
         self.db = db_connector
-        self.presence_service = presence_service
         self.hue_client = hue_client
         self.ifttt_client = ifttt_client
+
+    def is_present(self, motion_detected: bool = False) -> bool:
+        '''人感センサー検知またはスマホ Ping 疎通確認から在宅判定を行います。'''
+        if motion_detected:
+            return True
+        if not self.config.target_phone_ips:
+            return False
+        return ping.is_any_phone_reachable(self.config.target_phone_ips)
 
     def is_lighting_time(self, current_time: Optional[datetime] = None) -> bool:
         '''現在時刻が自動点灯判定対象の時間帯（例: 17:00 〜 06:00）か判定します。'''
@@ -65,16 +71,16 @@ class HomeService:
         if current_time is None:
             current_time = datetime.now()
 
-        is_present = self.presence_service.is_present(motion_detected=motion_detected)
+        present = self.is_present(motion_detected=motion_detected)
         last_in = self.db.get_last(LastName.IN)
         last_out = self.db.get_last(LastName.OUT)
 
-        if is_present:
+        if present:
             self._handle_in_state(last_in, last_out, current_time)
         else:
             self._handle_out_state(last_in, last_out, current_time)
 
-        return is_present
+        return present
 
     def _handle_in_state(
         self,

@@ -8,41 +8,6 @@ from homeiot import constants
 from homeiot.config import Config
 from homeiot.db.connector import InOutValue, LastName
 from homeiot.services.home_service import HomeService
-from homeiot.services.presence_service import PresenceService
-
-
-class TestPresenceService(unittest.TestCase):
-    '''PresenceService のテスト'''
-
-    @patch('homeiot.clients.ping.is_any_phone_reachable')
-    def test_check_phone_presence(self, mock_ping):
-        service = PresenceService(['192.168.1.10'])
-
-        mock_ping.return_value = True
-        self.assertTrue(service.check_phone_presence())
-        mock_ping.assert_called_once_with(['192.168.1.10'])
-
-        mock_ping.return_value = False
-        self.assertFalse(service.check_phone_presence())
-
-    def test_check_phone_presence_empty_ips(self):
-        service = PresenceService([])
-        self.assertFalse(service.check_phone_presence())
-
-    @patch('homeiot.clients.ping.is_any_phone_reachable')
-    def test_is_present(self, mock_ping):
-        service = PresenceService(['192.168.1.10'])
-
-        # Motion detected overrides ping
-        self.assertTrue(service.is_present(motion_detected=True))
-        mock_ping.assert_not_called()
-
-        # Motion not detected relies on ping
-        mock_ping.return_value = True
-        self.assertTrue(service.is_present(motion_detected=False))
-
-        mock_ping.return_value = False
-        self.assertFalse(service.is_present(motion_detected=False))
 
 
 class TestHomeService(unittest.TestCase):
@@ -50,20 +15,38 @@ class TestHomeService(unittest.TestCase):
 
     def setUp(self):
         self.mock_config = MagicMock(spec=Config)
+        self.mock_config.target_phone_ips = ['192.168.1.10']
         self.mock_config.hue_on_scene_id = 'scene-123'
         self.mock_db = MagicMock()
         self.mock_db.get_roomy_lock.return_value = None
-        self.mock_presence_service = MagicMock(spec=PresenceService)
         self.mock_hue_client = MagicMock()
         self.mock_ifttt_client = MagicMock()
 
         self.service = HomeService(
             config=self.mock_config,
             db_connector=self.mock_db,
-            presence_service=self.mock_presence_service,
             hue_client=self.mock_hue_client,
             ifttt_client=self.mock_ifttt_client,
         )
+
+    @patch('homeiot.clients.ping.is_any_phone_reachable')
+    def test_is_present(self, mock_ping):
+        # Motion detected overrides ping
+        self.assertTrue(self.service.is_present(motion_detected=True))
+        mock_ping.assert_not_called()
+
+        # Motion not detected relies on ping
+        mock_ping.return_value = True
+        self.assertTrue(self.service.is_present(motion_detected=False))
+        mock_ping.assert_called_once_with(['192.168.1.10'])
+
+        mock_ping.reset_mock()
+        mock_ping.return_value = False
+        self.assertFalse(self.service.is_present(motion_detected=False))
+
+    def test_is_present_no_ips(self):
+        self.mock_config.target_phone_ips = []
+        self.assertFalse(self.service.is_present(motion_detected=False))
 
     def test_is_lighting_time(self):
         # Default HUE_ON_BEGIN_HOUR = 17, HUE_ON_END_HOUR = 6
@@ -111,8 +94,9 @@ class TestHomeService(unittest.TestCase):
             self.assertTrue(self.service.is_roomy_sleeping_time(dt_afternoon))
             self.assertFalse(self.service.is_roomy_sleeping_time(dt_night))
 
-    def test_handle_presence_check_present_initial(self):
-        self.mock_presence_service.is_present.return_value = True
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_present_initial(self, mock_is_present):
+        mock_is_present.return_value = True
         self.mock_db.get_last.side_effect = lambda key: None
         now = datetime(2026, 9, 20, 12, 0, 0)
 
@@ -123,8 +107,9 @@ class TestHomeService(unittest.TestCase):
         self.mock_ifttt_client.dock_roomy.assert_not_called()
         self.mock_db.add_in_out_log.assert_not_called()
 
-    def test_handle_presence_check_present_returning_from_out(self):
-        self.mock_presence_service.is_present.return_value = True
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_present_returning_from_out(self, mock_is_present):
+        mock_is_present.return_value = True
         now = datetime(2026, 9, 20, 19, 0, 0)
         last_out = now - timedelta(minutes=10)
 
@@ -146,8 +131,9 @@ class TestHomeService(unittest.TestCase):
         self.mock_ifttt_client.turn_on_ceiling_light.assert_called_once()
         self.mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
 
-    def test_handle_presence_check_present_returning_daytime_no_lighting(self):
-        self.mock_presence_service.is_present.return_value = True
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_present_returning_daytime_no_lighting(self, mock_is_present):
+        mock_is_present.return_value = True
         now = datetime(2026, 9, 20, 12, 0, 0)
         last_out = now - timedelta(minutes=10)
 
@@ -166,8 +152,9 @@ class TestHomeService(unittest.TestCase):
         self.mock_ifttt_client.turn_on_ceiling_light.assert_not_called()
         self.mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
 
-    def test_handle_presence_check_present_returning_by_threshold(self):
-        self.mock_presence_service.is_present.return_value = True
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_present_returning_by_threshold(self, mock_is_present):
+        mock_is_present.return_value = True
         now = datetime(2026, 9, 20, 12, 0, 0)
         last_in = now - timedelta(minutes=10)
         last_out = now - timedelta(seconds=constants.OUT_THRESHOLD_SECONDS + 1)
@@ -187,15 +174,15 @@ class TestHomeService(unittest.TestCase):
         self.mock_ifttt_client.dock_roomy.assert_called_once()
         self.mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
 
-    def test_handle_presence_check_present_returning_without_hue_or_ifttt(self):
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_present_returning_without_hue_or_ifttt(self, mock_is_present):
+        mock_is_present.return_value = True
         service = HomeService(
             config=self.mock_config,
             db_connector=self.mock_db,
-            presence_service=self.mock_presence_service,
             hue_client=None,
             ifttt_client=None,
         )
-        self.mock_presence_service.is_present.return_value = True
         now = datetime(2026, 9, 20, 19, 0, 0)
         last_out = now - timedelta(minutes=10)
 
@@ -211,8 +198,9 @@ class TestHomeService(unittest.TestCase):
         self.assertTrue(res)
         self.mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
 
-    def test_handle_presence_check_out_initial(self):
-        self.mock_presence_service.is_present.return_value = False
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_out_initial(self, mock_is_present):
+        mock_is_present.return_value = False
         self.mock_db.get_last.return_value = None
         now = datetime(2026, 9, 20, 12, 0, 0)
 
@@ -222,8 +210,9 @@ class TestHomeService(unittest.TestCase):
         self.mock_db.set_last.assert_not_called()
         self.mock_db.add_in_out_log.assert_not_called()
 
-    def test_handle_presence_check_out_thresholds(self):
-        self.mock_presence_service.is_present.return_value = False
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_out_thresholds(self, mock_is_present):
+        mock_is_present.return_value = False
         now = datetime(2026, 9, 20, 14, 0, 0)
         last_in = now - timedelta(seconds=constants.HUE_THRESHOLD_SECONDS + 10)
 
@@ -252,8 +241,9 @@ class TestHomeService(unittest.TestCase):
         self.mock_ifttt_client.start_roomy.assert_called_once()
         self.mock_db.set_last.assert_any_call(LastName.ROOMY, now)
 
-    def test_handle_presence_check_out_already_recorded_out(self):
-        self.mock_presence_service.is_present.return_value = False
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_out_already_recorded_out(self, mock_is_present):
+        mock_is_present.return_value = False
         now = datetime(2026, 9, 20, 14, 0, 0)
         last_in = now - timedelta(seconds=constants.OUT_THRESHOLD_SECONDS + 10)
         last_out = now - timedelta(seconds=5)
@@ -272,8 +262,9 @@ class TestHomeService(unittest.TestCase):
         # Since last_out > last_in, OUT log is not added again
         self.mock_db.add_in_out_log.assert_not_called()
 
-    def test_check_and_turn_off_lights_hue_is_off(self):
-        self.mock_presence_service.is_present.return_value = False
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_check_and_turn_off_lights_hue_is_off(self, mock_is_present):
+        mock_is_present.return_value = False
         now = datetime(2026, 9, 20, 14, 0, 0)
         last_in = now - timedelta(seconds=constants.HUE_THRESHOLD_SECONDS + 10)
 
@@ -294,7 +285,6 @@ class TestHomeService(unittest.TestCase):
         service = HomeService(
             config=self.mock_config,
             db_connector=self.mock_db,
-            presence_service=self.mock_presence_service,
             hue_client=None,
             ifttt_client=None,
         )
@@ -308,7 +298,6 @@ class TestHomeService(unittest.TestCase):
         service_no_ifttt = HomeService(
             config=self.mock_config,
             db_connector=self.mock_db,
-            presence_service=self.mock_presence_service,
             ifttt_client=None,
         )
         service_no_ifttt._check_and_start_roomy(now)
@@ -330,8 +319,9 @@ class TestHomeService(unittest.TestCase):
         self.service._check_and_start_roomy(now)
         self.mock_ifttt_client.start_roomy.assert_not_called()
 
-    def test_handle_presence_check_default_current_time(self):
-        self.mock_presence_service.is_present.return_value = True
+    @patch('homeiot.services.home_service.HomeService.is_present')
+    def test_handle_presence_check_default_current_time(self, mock_is_present):
+        mock_is_present.return_value = True
         self.mock_db.get_last.return_value = None
 
         res = self.service.handle_presence_check()
