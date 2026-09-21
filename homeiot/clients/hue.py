@@ -55,3 +55,13 @@ class HueClient:
         except Exception as e:
             logger.error(f'Failed to get group {group_id}: {e}')
             return None
+
+    def is_any_on(self, group_id: str) -> Optional[bool]:
+        '''指定グループ内のいずれかのライトが点灯中か判定します (.state.any_on)。'''
+        group = self.get_group(group_id)
+        if group is None:
+            return None
+        state = group.get('state', {})
+        if isinstance(state, dict) and 'any_on' in state:
+            return bool(state['any_on'])
+        return None

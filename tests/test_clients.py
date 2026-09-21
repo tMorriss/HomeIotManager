@@ -110,6 +110,20 @@ class TestHueClient(unittest.TestCase):
         data = self.client.get_group('2')
         self.assertIsNone(data)
 
+    @patch.object(HueClient, 'get_group')
+    def test_is_any_on(self, mock_get_group):
+        mock_get_group.return_value = {'state': {'any_on': True}}
+        self.assertTrue(self.client.is_any_on('2'))
+
+        mock_get_group.return_value = {'state': {'any_on': False}}
+        self.assertFalse(self.client.is_any_on('2'))
+
+        mock_get_group.return_value = {'state': {}}
+        self.assertIsNone(self.client.is_any_on('2'))
+
+        mock_get_group.return_value = None
+        self.assertIsNone(self.client.is_any_on('2'))
+
 
 class TestIftttClient(unittest.TestCase):
     '''IFTTT クライアントのテスト'''
