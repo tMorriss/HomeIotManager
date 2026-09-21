@@ -16,23 +16,15 @@ webhook_bp = Blueprint('webhook', __name__)
 def handle_switchbot_webhook():
     '''SwitchBot Webhook エンドポイント'''
     token = request.args.get('token')
-    switchbot_client = current_app.config.get('SWITCHBOT_CLIENT')
 
-    if not switchbot_client or not switchbot_client.verify_token(token):
+    if not current_app.switchbot_client.verify_token(token):
         logger.warning('Unauthorized SwitchBot webhook access attempt.')
         return jsonify({'message': 'Unauthorized'}), 401
 
     payload = request.get_json(silent=True) or {}
-    parsed = switchbot_client.parse_webhook_payload(payload)
+    parsed = current_app.switchbot_client.parse_webhook_payload(payload)
     is_motion_detected = parsed.get('is_motion_detected', False)
 
-    home_service = current_app.config.get('HOME_SERVICE')
-    present = False
-    if home_service:
-        present = home_service.handle_presence_check(motion_detected=is_motion_detected)
+    current_app.home_service.handle_presence_check(motion_detected=is_motion_detected)
 
-    return jsonify({
-        'status': 'ok',
-        'motion_detected': is_motion_detected,
-        'present': present,
-    }), 200
+    return '', 204

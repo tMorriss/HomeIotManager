@@ -3,8 +3,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from flask import Flask
-
 from homeiot.app import create_app
 from homeiot.config import Config
 
@@ -67,11 +65,8 @@ class TestWebApp(unittest.TestCase):
         }
 
         response = self.client.post('/switchbot/all?token=secret_token', json=payload)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.get_json(),
-            {'status': 'ok', 'motion_detected': True, 'present': True},
-        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.get_data(as_text=True), '')
         self.mock_home_service.handle_presence_check.assert_called_once_with(motion_detected=True)
 
     def test_switchbot_webhook_success_no_motion_detected(self):
@@ -85,21 +80,9 @@ class TestWebApp(unittest.TestCase):
         self.mock_home_service.handle_presence_check.return_value = False
 
         response = self.client.post('/switchbot/all?token=secret_token', json={})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.get_json(),
-            {'status': 'ok', 'motion_detected': False, 'present': False},
-        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.get_data(as_text=True), '')
         self.mock_home_service.handle_presence_check.assert_called_once_with(motion_detected=False)
-
-    def test_switchbot_webhook_missing_services_in_config(self):
-        '''app.config 内にクライアントやサービスが存在しないエッジケース'''
-        test_app = Flask(__name__)
-        test_app.register_blueprint(self.app.blueprints['webhook'])
-        test_client = test_app.test_client()
-
-        response = test_client.post('/switchbot/all')
-        self.assertEqual(response.status_code, 401)
 
     @patch('homeiot.app.HomeService')
     @patch('homeiot.app.IftttClient')
@@ -130,10 +113,10 @@ class TestWebApp(unittest.TestCase):
         mock_ifttt_cls.assert_called_once_with(mock_cfg)
         mock_hs_cls.assert_called_once()
 
-        self.assertIn('APP_CONFIG', app.config)
-        self.assertIn('DB_CONNECTOR', app.config)
-        self.assertIn('SWITCHBOT_CLIENT', app.config)
-        self.assertIn('HOME_SERVICE', app.config)
+        self.assertTrue(hasattr(app, 'config_obj'))
+        self.assertTrue(hasattr(app, 'db_connector'))
+        self.assertTrue(hasattr(app, 'switchbot_client'))
+        self.assertTrue(hasattr(app, 'home_service'))
 
 
 if __name__ == '__main__':

@@ -47,10 +47,10 @@ def create_app(
             ifttt_client=ifttt_client,
         )
 
-    app.config['APP_CONFIG'] = config
-    app.config['DB_CONNECTOR'] = db_connector
-    app.config['SWITCHBOT_CLIENT'] = switchbot_client
-    app.config['HOME_SERVICE'] = home_service
+    app.config_obj = config
+    app.db_connector = db_connector
+    app.switchbot_client = switchbot_client
+    app.home_service = home_service
 
     app.register_blueprint(webhook_bp)
 
