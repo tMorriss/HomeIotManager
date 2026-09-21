@@ -1,0 +1,1 @@
+'''HomeIotManager - Web パッケージ'''

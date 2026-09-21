@@ -59,7 +59,7 @@ flowchart TD
 | **PR 2** | 設定管理 & DBアクセス層 | ・`homeiot/constants.py`（動作パラメータの1箇所集約）<br>・`homeiot/config.py`（環境変数ローダー）<br>・`homeiot/db/connector.py`（MySQLパラメータバインドDAO） | 設定読み込みの単体テスト、DB クエリ発行・モックテスト（`tests/test_config.py`, `tests/test_db.py`） |
 | **PR 3** | 外部IoT連携クライアント層 | ・`homeiot/clients/ping.py`（スマホICMP Ping判定）<br>・`homeiot/clients/hue.py`（Philips Hue ローカルREST API）<br>・`homeiot/clients/ifttt.py`（ルンバ/照明 IFTTT Webhook）<br>・`homeiot/clients/switchbot.py`（SwitchBot API/Webhookパース） | 各外部通信のモック単体テスト（`tests/test_clients.py` 等） |
 | **PR 4** | コアビジネスロジック層 | ・`homeiot/services/home_service.py`（在宅・外出時の家電制御判定）<br>・`homeiot/services/presence_service.py`（スマホ・センサー状態統合） | 現行 `test_check.py` のシナリオ（時間帯・閾値・在宅判定・ルンバロック）を網羅した単体テスト（目標カバレッジ 100%） |
-| **PR 5** | Webサーバー層 (Blueprint) | ・`homeiot/app.py`（Flask アプリケーションファクトリ）<br>・`homeiot/web/webhook.py`（SwitchBot Webhook / ポート 8930）<br>・`homeiot/web/settings.py`（ルンバロック設定UI）<br>・`homeiot/templates/settings.html`<br>・`/healthz` エンドポイント | Flask テストクライアントを用いたエンドポイント検証（`tests/test_web.py`） |
+| **PR 5** | Webサーバー層 (Blueprint) | ・`homeiot/app.py`（Flask アプリケーションファクトリ）<br>・`homeiot/web/webhook.py`（SwitchBot Webhook / ポート 8930）<br>・`/healthz` エンドポイント<br>（※ `roomy_lock` の DB・ロジックは保持しますが、保守コスト削減のため Web UI 設定画面は作成しません） | Flask テストクライアントを用いたエンドポイント検証（`tests/test_web.py`） |
 | **PR 6** | 常駐バッチワーカー & CLI | ・`homeiot/services/batch_worker.py`（10秒間隔監視ループ、例外安全、シグナルハンドリング）<br>・`homeiot/cli.py`（`python -m homeiot.cli web` / `worker` 起動切替） | ワーカーの停止シグナル・ループ単体テスト、CLI オプションテスト |
 | **PR 7** | コンテナ化 & デプロイ構成 | ・`build/Dockerfile`（Python 3.12-slim マルチステージ）<br>・`build/pod.yaml`（ポート 8930, `hostNetwork: true` Podman Pod）<br>・`build/jenkins.sh`（MoneyBook準拠のビルド・デプロイスクリプト） | ローカル Docker/Podman ビルド確認、YAML構文バリデーション |
 
