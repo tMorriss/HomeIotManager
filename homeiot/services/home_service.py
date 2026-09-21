@@ -160,7 +160,6 @@ class HomeService:
             logger.info('Turning off lights after threshold.')
             self.hue_client.turn_off_group(constants.HUE_OFF_GROUP_ID)
             self.ifttt_client.turn_off_ceiling_light()
-            self.db.set_last(LastName.HUE_OFF, current_time)
         else:
             self.db.set_last(LastName.HUE_OFF, current_time)
 

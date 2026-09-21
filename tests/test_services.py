@@ -213,7 +213,6 @@ class TestHomeService(unittest.TestCase):
         # Light turning off
         self.mock_hue_client.turn_off_group.assert_called_once_with(constants.HUE_OFF_GROUP_ID)
         self.mock_ifttt_client.turn_off_ceiling_light.assert_called_once()
-        self.mock_db.set_last.assert_any_call(LastName.HUE_OFF, now)
 
         # Roomy start
         self.mock_ifttt_client.start_roomy.assert_called_once()
