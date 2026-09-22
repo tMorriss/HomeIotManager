@@ -1,32 +1,31 @@
-'''HomeIotManager - 設定クラス単体テスト
-'''
+'''HomeIotManager - 設定クラス単体テスト'''
 
 import os
-import unittest
-from unittest.mock import patch
+
+import pytest
 
 from homeiot import constants
 from homeiot.config import Config
 
 
-class TestConfig(unittest.TestCase):
+class TestConfig:
     '''Config クラスのテスト'''
 
     def test_constants_defined(self):
         '''constants モジュールに定数が正しく定義されていることの検証'''
-        self.assertEqual(constants.CHECK_INTERVAL_SECONDS, 10)
-        self.assertEqual(constants.OUT_THRESHOLD_SECONDS, 300)
-        self.assertEqual(constants.HUE_THRESHOLD_SECONDS, 600)
-        self.assertEqual(constants.LAST_IN_THRESHOLD_SECONDS, 180)
-        self.assertEqual(constants.HUE_ON_BEGIN_HOUR, 17)
-        self.assertEqual(constants.HUE_ON_END_HOUR, 6)
-        self.assertEqual(constants.ROOMY_SLEEP_START_HOUR, 22)
-        self.assertEqual(constants.ROOMY_SLEEP_END_HOUR, 6)
-        self.assertEqual(constants.HUE_ON_GROUP_ID, '2')
-        self.assertEqual(constants.HUE_OFF_GROUP_ID, '3')
-        self.assertEqual(constants.WEB_PORT, 8930)
+        assert constants.CHECK_INTERVAL_SECONDS == 10
+        assert constants.OUT_THRESHOLD_SECONDS == 300
+        assert constants.HUE_THRESHOLD_SECONDS == 600
+        assert constants.LAST_IN_THRESHOLD_SECONDS == 180
+        assert constants.HUE_ON_BEGIN_HOUR == 17
+        assert constants.HUE_ON_END_HOUR == 6
+        assert constants.ROOMY_SLEEP_START_HOUR == 22
+        assert constants.ROOMY_SLEEP_END_HOUR == 6
+        assert constants.HUE_ON_GROUP_ID == '2'
+        assert constants.HUE_OFF_GROUP_ID == '3'
+        assert constants.WEB_PORT == 8930
 
-    def test_from_env_valid_values(self):
+    def test_from_env_valid_values(self, monkeypatch):
         '''全環境変数が設定されている場合の正常読み込み検証'''
         env = {
             'DB_HOST': 'db.example.com',
@@ -41,21 +40,21 @@ class TestConfig(unittest.TestCase):
             'IFTTT_WEBHOOK_KEY': 'iftttkey',
             'SWITCHBOT_WEBHOOK_TOKEN': 'swtoken',
         }
-        with patch.dict(os.environ, env, clear=True):
-            config = Config()
-            self.assertEqual(config.db_host, 'db.example.com')
-            self.assertEqual(config.db_port, 3307)
-            self.assertEqual(config.db_user, 'testuser')
-            self.assertEqual(config.db_pass, 'testpass')
-            self.assertEqual(config.db_name, 'testdb')
-            self.assertEqual(config.target_phone_ips, ['192.168.1.10', '192.168.1.11'])
-            self.assertEqual(config.hue_bridge_ip, '192.168.1.20')
-            self.assertEqual(config.hue_api_user, 'hueuser')
-            self.assertEqual(config.hue_on_scene_id, 'scene123')
-            self.assertEqual(config.ifttt_webhook_key, 'iftttkey')
-            self.assertEqual(config.switchbot_webhook_token, 'swtoken')
+        monkeypatch.setattr(os, 'environ', env)
+        config = Config()
+        assert config.db_host == 'db.example.com'
+        assert config.db_port == 3307
+        assert config.db_user == 'testuser'
+        assert config.db_pass == 'testpass'
+        assert config.db_name == 'testdb'
+        assert config.target_phone_ips == ['192.168.1.10', '192.168.1.11']
+        assert config.hue_bridge_ip == '192.168.1.20'
+        assert config.hue_api_user == 'hueuser'
+        assert config.hue_on_scene_id == 'scene123'
+        assert config.ifttt_webhook_key == 'iftttkey'
+        assert config.switchbot_webhook_token == 'swtoken'
 
-    def test_invalid_db_port_raises_error(self):
+    def test_invalid_db_port_raises_error(self, monkeypatch):
         '''不正な DB_PORT の場合に ValueError が発生することの検証'''
         env = {
             'DB_HOST': 'db.example.com',
@@ -70,17 +69,12 @@ class TestConfig(unittest.TestCase):
             'IFTTT_WEBHOOK_KEY': 'iftttkey',
             'SWITCHBOT_WEBHOOK_TOKEN': 'swtoken',
         }
-        with patch.dict(os.environ, env, clear=True):
-            with self.assertRaises(ValueError):
-                Config()
+        monkeypatch.setattr(os, 'environ', env)
+        with pytest.raises(ValueError):
+            Config()
 
-    def test_validate_missing_variables(self):
+    def test_validate_missing_variables(self, monkeypatch):
         '''必須の環境変数が不足している場合に ValueError が発生することの検証'''
-        with patch.dict(os.environ, {}, clear=True):
-            with self.assertRaises(ValueError) as cm:
-                Config()
-            self.assertIn('Missing required environment variables', str(cm.exception))
-
-
-if __name__ == '__main__':
-    unittest.main()
+        monkeypatch.setattr(os, 'environ', {})
+        with pytest.raises(ValueError, match='Missing required environment variables'):
+            Config()
