@@ -55,8 +55,10 @@ HomeIotManager/
 3. **改修案件ごとの個別計画書 ([`docs/plans/`](docs/plans/))**:
    - 新規機能や大規模改修に着手する際は、着手前に `docs/plans/YYYY-MM-DD-<overview>.md`（例: `docs/plans/2026-09-20-migration-from-in-out-log.md`）を作成します。
    - 案件の背景、詳細設計、PR 分割計画、検証手順を記録し、完了後も恒久的な計画アーカイブとして保持します。
+   - **進捗管理**: 実行計画書に基づいてタスクを実行する際は、進捗に応じて計画書内のチェックリストにチェック（`[x]`）をつけて更新します。
 4. **作業履歴マスター ([`docs/work_history.md`](docs/work_history.md))**:
    - `docs/work_history.md` は **純粋な Work History（案件履歴一覧）** として運用します。
+   - 実行計画（個別計画書）を作成した際は、必ず `docs/work_history.md` に新案件として記載・追記を行ってください。
    - 案件の起票・進行・完了時に、日付・案件名・ステータス・計画書へのリンクを記録します（ActivePlan などの重複した詳細は記載せず、個別計画書に委ねます）。
 
 ---
