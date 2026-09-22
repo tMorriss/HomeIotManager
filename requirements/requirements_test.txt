@@ -2,3 +2,4 @@
 coverage
 pytest>=9.1.1,<10.0.0
 pytest-asyncio>=1.4.0,<2.0.0
+pytest-mock>=3.14.0,<4.0.0
