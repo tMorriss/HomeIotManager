@@ -1,7 +1,7 @@
 '''HomeIotManager - Web 層 単体テスト'''
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeiot.app import create_app
 from homeiot.config import Config
@@ -16,6 +16,7 @@ class TestWebApp(unittest.TestCase):
         self.mock_db = MagicMock()
         self.mock_switchbot_client = MagicMock()
         self.mock_home_service = MagicMock()
+        self.mock_home_service.handle_presence_check = AsyncMock()
 
         self.app = create_app(
             config=self.mock_config,
@@ -102,6 +103,9 @@ class TestWebApp(unittest.TestCase):
         '''create_app が引数なし（デフォルト）で正常に初期化されるかのテスト'''
         mock_cfg = MagicMock()
         mock_cfg.switchbot_webhook_token = 'token'
+        mock_cfg.hue_bridge_ip = '192.168.1.1'
+        mock_cfg.hue_api_user = 'user'
+        mock_cfg.ifttt_webhook_key = 'key'
         mock_config_cls.return_value = mock_cfg
 
         app = create_app()
@@ -109,8 +113,8 @@ class TestWebApp(unittest.TestCase):
         mock_config_cls.assert_called_once()
         mock_db_cls.assert_called_once_with(mock_cfg)
         mock_sb_cls.assert_called_once_with('token')
-        mock_hue_cls.assert_called_once_with(mock_cfg)
-        mock_ifttt_cls.assert_called_once_with(mock_cfg)
+        mock_hue_cls.assert_called_once_with('192.168.1.1', 'user')
+        mock_ifttt_cls.assert_called_once_with('key')
         mock_hs_cls.assert_called_once()
 
         self.assertTrue(hasattr(app, 'config_obj'))
