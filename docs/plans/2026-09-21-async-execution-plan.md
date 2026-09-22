@@ -70,7 +70,7 @@ flowchart TD
 
 - [x] PR Async 1: 非同期依存パッケージ & テスト基盤準備
 - [x] PR Async 2: 非同期DBアクセス層 & クライアント層
-- [ ] PR Async 3: 非同期コアビジネスロジック層
+- [x] PR Async 3: 非同期コアビジネスロジック層
 - [ ] PR Async 4: 非同期 Web サーバー層
 - [ ] PR Async 5: 常駐非同期バッチワーカー & CLI
 - [ ] PR Async 6: コンテナ & デプロイ構成更新
