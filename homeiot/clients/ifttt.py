@@ -9,30 +9,17 @@ from typing import Optional
 
 import httpx
 
+from homeiot.clients.base import BaseHttpClient
+
 logger = logging.getLogger(__name__)
 
 
-class IftttClient:
+class IftttClient(BaseHttpClient):
     '''IFTTT Webhook クライアント (非同期)'''
 
     def __init__(self, webhook_key: str, client: Optional[httpx.AsyncClient] = None):
+        super().__init__(client=client)
         self.webhook_key = webhook_key
-        self._client = client
-        self._owns_client = client is None
-
-    @property
-    def client(self) -> httpx.AsyncClient:
-        '''AsyncClient を取得（未作成またはクローズ時は再作成）します。'''
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient()
-            self._owns_client = True
-        return self._client
-
-    async def close(self) -> None:
-        '''AsyncClient をクローズします。'''
-        if self._owns_client and self._client is not None and not self._client.is_closed:
-            await self._client.aclose()
-            self._client = None
 
     async def trigger_event(self, event_name: str) -> bool:
         '''指定されたイベント名で IFTTT Webhook を非同期呼び出しします。'''

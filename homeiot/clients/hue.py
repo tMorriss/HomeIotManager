@@ -9,10 +9,12 @@ from typing import Any, Dict, Optional
 
 import httpx
 
+from homeiot.clients.base import BaseHttpClient
+
 logger = logging.getLogger(__name__)
 
 
-class HueClient:
+class HueClient(BaseHttpClient):
     '''Philips Hue ローカル REST API クライアント (非同期)'''
 
     def __init__(
@@ -21,25 +23,10 @@ class HueClient:
         api_user: str,
         client: Optional[httpx.AsyncClient] = None,
     ):
+        super().__init__(client=client)
         self.bridge_ip = bridge_ip
         self.api_user = api_user
         self.base_url = f'http://{self.bridge_ip}/api/{self.api_user}'
-        self._client = client
-        self._owns_client = client is None
-
-    @property
-    def client(self) -> httpx.AsyncClient:
-        '''AsyncClient を取得（未作成またはクローズ時は再作成）します。'''
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient()
-            self._owns_client = True
-        return self._client
-
-    async def close(self) -> None:
-        '''AsyncClient をクローズします。'''
-        if self._owns_client and self._client is not None and not self._client.is_closed:
-            await self._client.aclose()
-            self._client = None
 
     async def activate_scene(self, group_id: str, scene_id: str) -> bool:
         '''指定グループに対してシーンを呼び出します (PUT /groups/<id>/action)。'''
