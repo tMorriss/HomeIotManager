@@ -1,2 +1,4 @@
 -r requirements.txt
 coverage
+pytest>=9.1.1,<10.0.0
+pytest-asyncio>=1.4.0,<2.0.0
