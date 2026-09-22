@@ -13,7 +13,7 @@ webhook_bp = Blueprint('webhook', __name__)
 
 
 @webhook_bp.route('/switchbot/all', methods=['POST'])
-def handle_switchbot_webhook():
+async def handle_switchbot_webhook():
     '''SwitchBot Webhook エンドポイント'''
     token = request.args.get('token')
 
@@ -25,6 +25,6 @@ def handle_switchbot_webhook():
     parsed = current_app.switchbot_client.parse_webhook_payload(payload)
     is_motion_detected = parsed.get('is_motion_detected', False)
 
-    current_app.home_service.handle_presence_check(motion_detected=is_motion_detected)
+    await current_app.home_service.handle_presence_check(motion_detected=is_motion_detected)
 
     return '', 204
