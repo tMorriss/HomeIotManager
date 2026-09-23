@@ -8,21 +8,12 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
-from homeiot.web.schemas import ErrorResponse
-
 logger = logging.getLogger(__name__)
 
 webhook_router = APIRouter()
 
 
-@webhook_router.post(
-    '/switchbot/all',
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={
-        401: {'model': ErrorResponse, 'description': 'Unauthorized'},
-        500: {'model': ErrorResponse, 'description': 'Internal Server Error'},
-    },
-)
+@webhook_router.post('/switchbot/all', status_code=status.HTTP_204_NO_CONTENT)
 async def handle_switchbot_webhook(request: Request, token: Optional[str] = None):
     '''SwitchBot Webhook エンドポイント'''
     switchbot_client = request.app.state.switchbot_client
@@ -43,6 +34,13 @@ async def handle_switchbot_webhook(request: Request, token: Optional[str] = None
     parsed = switchbot_client.parse_webhook_payload(payload)
     is_motion_detected = parsed.get('is_motion_detected', False)
 
-    await home_service.handle_presence_check(motion_detected=is_motion_detected)
+    try:
+        await home_service.handle_presence_check(motion_detected=is_motion_detected)
+    except Exception as exc:
+        logger.error('Error occurred during presence check: %s', exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='Internal Server Error',
+        ) from exc
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

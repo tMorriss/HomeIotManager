@@ -6,8 +6,7 @@ FastAPI アプリケーションの生成、環境設定、ルーターの登録
 import logging
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
@@ -16,7 +15,6 @@ from homeiot.config import Config
 from homeiot.db.connector import DBConnector
 from homeiot.services.home_service import HomeService
 from homeiot.web.health import health_router
-from homeiot.web.schemas import ErrorResponse
 from homeiot.web.webhook import webhook_router
 
 logger = logging.getLogger(__name__)
@@ -57,22 +55,5 @@ def create_app(
 
     app.include_router(health_router)
     app.include_router(webhook_router)
-
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(request: Request, exc: HTTPException):
-        detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
-        return JSONResponse(
-            status_code=exc.status_code,
-            content=ErrorResponse(title=detail).model_dump(),
-            headers=exc.headers,
-        )
-
-    @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception):
-        logger.error('Unhandled exception occurred: %s', exc, exc_info=True)
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=ErrorResponse(title='Internal Server Error').model_dump(),
-        )
 
     return app
