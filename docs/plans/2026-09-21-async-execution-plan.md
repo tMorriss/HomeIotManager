@@ -72,7 +72,7 @@ flowchart TD
 - [x] PR Async 2: 非同期DBアクセス層 & クライアント層
 - [x] PR Async 3: 非同期コアビジネスロジック層
 - [x] PR Async 4: 非同期 Web サーバー層 (FastAPI化)
-- [ ] PR Async 5: 常駐非同期バッチワーカー & CLI
+- [x] PR Async 5: 常駐非同期バッチワーカー & CLI
 - [ ] PR Async 6: コンテナ & デプロイ構成更新
 - [ ] 全ユニットテスト pass & カバレッジ確認
 - [ ] 本番デプロイ準備完了

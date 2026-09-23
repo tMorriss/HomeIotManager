@@ -23,7 +23,7 @@ class TestConfig:
         assert constants.ROOMY_SLEEP_END_HOUR == 6
         assert constants.HUE_ON_GROUP_ID == '2'
         assert constants.HUE_OFF_GROUP_ID == '3'
-        assert constants.WEB_PORT == 8930
+        assert constants.WEB_PORT == 8001
 
     def test_from_env_valid_values(self, monkeypatch):
         '''全環境変数が設定されている場合の正常読み込み検証'''
