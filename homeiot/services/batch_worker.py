@@ -56,11 +56,15 @@ class BatchWorker:
         self.running = True
         self._shutdown_event.clear()
         self._setup_signal_handlers()
+        tasks = set()
         logger.info('Batch worker started. Running every %d seconds.', self.interval)
 
         try:
             while self.running:
-                await self.run_once()
+                task = asyncio.create_task(self.run_once())
+                tasks.add(task)
+                task.add_done_callback(tasks.discard)
+
                 try:
                     await asyncio.wait_for(
                         self._shutdown_event.wait(), timeout=self.interval
@@ -68,6 +72,8 @@ class BatchWorker:
                 except asyncio.TimeoutError:
                     pass
         finally:
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
             await self.stop()
 
     def _setup_signal_handlers(self) -> None:
