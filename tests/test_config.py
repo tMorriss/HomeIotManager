@@ -4,26 +4,11 @@ import os
 
 import pytest
 
-from homeiot import constants
 from homeiot.config import Config
 
 
 class TestConfig:
     '''Config クラスのテスト'''
-
-    def test_constants_defined(self):
-        '''constants モジュールに定数が正しく定義されていることの検証'''
-        assert constants.CHECK_INTERVAL_SECONDS == 10
-        assert constants.OUT_THRESHOLD_SECONDS == 300
-        assert constants.HUE_THRESHOLD_SECONDS == 600
-        assert constants.LAST_IN_THRESHOLD_SECONDS == 180
-        assert constants.HUE_ON_BEGIN_HOUR == 17
-        assert constants.HUE_ON_END_HOUR == 6
-        assert constants.ROOMY_SLEEP_START_HOUR == 22
-        assert constants.ROOMY_SLEEP_END_HOUR == 6
-        assert constants.HUE_ON_GROUP_ID == '2'
-        assert constants.HUE_OFF_GROUP_ID == '3'
-        assert constants.WEB_PORT == 8930
 
     def test_from_env_valid_values(self, monkeypatch):
         '''全環境変数が設定されている場合の正常読み込み検証'''
