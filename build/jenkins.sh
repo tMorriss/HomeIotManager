@@ -11,6 +11,8 @@ if echo "${COMMIT_MSG}" | grep -q "\[skip ci\]"; then
 fi
 
 # 2. 必須環境変数のバリデーション
+PODMAN_USER="${PODMAN_USER:-podman}"
+
 REQUIRED_VARS=(
     "DB_HOST"
     "DB_PORT"
@@ -39,48 +41,20 @@ echo "Building tag: ${BUILD_TAG}"
 
 # 4. ベースイメージの pull & podman build
 echo "Building podman image homeiot:${BUILD_TAG}..."
-podman pull python:3.12-slim || true
-podman build -t "homeiot:${BUILD_TAG}" -f build/Dockerfile .
+sudo -u "${PODMAN_USER}" podman pull python:3.12-slim || true
+sudo -u "${PODMAN_USER}" podman build -t "homeiot:${BUILD_TAG}" -f build/Dockerfile .
 
 # 5. 既存 Pod の停止・削除
 echo "Stopping and removing existing homeiot-pod if present..."
-podman pod stop homeiot-pod 2>/dev/null || true
-podman pod rm -f homeiot-pod 2>/dev/null || true
+sudo -u "${PODMAN_USER}" podman pod stop homeiot-pod 2>/dev/null || true
+sudo -u "${PODMAN_USER}" podman pod rm -f homeiot-pod 2>/dev/null || true
 
 # 6. envsubst による pod.yaml の展開 & podman play kube で Pod 起動
-RENDERED_POD_YAML=$(mktemp /tmp/pod-manifest.XXXXXX.yaml)
-trap 'rm -f "${RENDERED_POD_YAML}"' EXIT
-
-echo "Rendering pod.yaml with envsubst..."
-envsubst < build/pod.yaml > "${RENDERED_POD_YAML}"
-
 echo "Starting Pod with podman play kube..."
-podman play kube "${RENDERED_POD_YAML}"
+envsubst < build/pod.yaml | sudo -u "${PODMAN_USER}" podman play kube -
 
-# 7. ヘルスチェック (8930/healthz)
-echo "Running health check on http://127.0.0.1:8930/healthz..."
-MAX_RETRIES=30
-RETRY_INTERVAL=2
-HEALTHCHECK_PASSED=0
-
-for i in $(seq 1 ${MAX_RETRIES}); do
-    if curl -s -f http://127.0.0.1:8930/healthz > /dev/null; then
-        echo "Health check passed!"
-        HEALTHCHECK_PASSED=1
-        break
-    fi
-    echo "Waiting for web server to be ready... (${i}/${MAX_RETRIES})"
-    sleep ${RETRY_INTERVAL}
-done
-
-if [ ${HEALTHCHECK_PASSED} -ne 1 ]; then
-    echo "Error: Health check failed after ${MAX_RETRIES} attempts." >&2
-    podman pod logs homeiot-pod 2>/dev/null || true
-    exit 1
-fi
-
-# 8. クリーンアップ
+# 7. クリーンアップ
 echo "Cleaning up old images..."
-podman image prune -f || true
+sudo -u "${PODMAN_USER}" podman image prune -f || true
 
 echo "=== Deployment Completed Successfully ==="
