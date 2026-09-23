@@ -114,7 +114,7 @@ class TestWebApp:
 
         response = client.post('/switchbot/all?token=secret_token', json={})
         assert response.status_code == 500
-        assert response.text == 'Internal Server Error'
+        assert response.json() == {'detail': {'message': 'Internal Server Error'}}
 
     def test_create_app_defaults(self, mocker):
         '''create_app が引数なし（デフォルト）で正常に初期化されるかのテスト'''
