@@ -23,8 +23,8 @@ class TestCLI:
         mock_asyncio_run.assert_called_once_with(mock_worker_instance.start())
 
     @patch('uvicorn.run')
-    def test_main_web_subcommand_defaults(self, mock_uvicorn_run):
-        '''web サブコマンドでデフォルト引数が uvicorn.run に渡されることの検証'''
+    def test_main_web_subcommand(self, mock_uvicorn_run):
+        '''web サブコマンドで uvicorn.run が呼び出されることの検証'''
         cli.main(['web'])
 
         mock_uvicorn_run.assert_called_once_with(
@@ -32,18 +32,6 @@ class TestCLI:
             factory=True,
             host='0.0.0.0',
             port=8001,
-        )
-
-    @patch('uvicorn.run')
-    def test_main_web_subcommand_custom_args(self, mock_uvicorn_run):
-        '''web サブコマンドでカスタム --host と --port が正しく渡されることの検証'''
-        cli.main(['web', '--host', '127.0.0.1', '--port', '9000'])
-
-        mock_uvicorn_run.assert_called_once_with(
-            'homeiot.app:create_app',
-            factory=True,
-            host='127.0.0.1',
-            port=9000,
         )
 
     def test_main_invalid_subcommand(self):

@@ -26,16 +26,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     subparsers.add_parser('worker', help='Start resident batch worker')
 
     # web サブコマンド
-    web_parser = subparsers.add_parser('web', help='Start FastAPI web server')
-    web_parser.add_argument(
-        '--host', default='0.0.0.0', help='Bind host (default: 0.0.0.0)'
-    )
-    web_parser.add_argument(
-        '--port',
-        type=int,
-        default=constants.WEB_PORT,
-        help=f'Bind port (default: {constants.WEB_PORT})',
-    )
+    subparsers.add_parser('web', help='Start FastAPI web server')
 
     args = parser.parse_args(argv)
 
@@ -46,8 +37,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         uvicorn.run(
             'homeiot.app:create_app',
             factory=True,
-            host=args.host,
-            port=args.port,
+            host='0.0.0.0',
+            port=constants.WEB_PORT,
         )
 
 
