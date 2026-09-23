@@ -12,5 +12,5 @@
 
 | 計画日 | 案件名 | ステータス | 計画書 | 主な内容 |
 |---|---|---|---|---|
-| 2026-09-20 | in_out_log からの移行・再構築 | **進行中 (Active)** | [plans/2026-09-20-migration-from-in-out-log.md](plans/2026-09-20-migration-from-in-out-log.md) | 現行 in_out_log の完全リプレイス。Podman Pod 化（Web: 8930, Worker: 10秒間隔）、パブリックリポジトリセキュリティ、MoneyBook 準拠 CI/CD。PR 1〜7 に細かく分割して実装。 |
-| 2026-09-21 | バッチ処理・Webサーバーの非同期処理化 (asyncio対応) | **進行中 (Active)** | [plans/2026-09-21-async-execution-plan.md](plans/2026-09-21-async-execution-plan.md) | Web サーバーおよび常駐バッチワーカー全般の `asyncio` 非同期化。`httpx`, `aiomysql`/`asyncmy`, ASGI 対応等によるリアルタイム性・レスポンス性能向上。PR Async 1〜6 に分割して実装。 |
+| 2026-09-20 | in_out_log からの移行・再構築 | **中断 (Aborted)** | [plans/2026-09-20-migration-from-in-out-log.md](plans/2026-09-20-migration-from-in-out-log.md) | 現行 in_out_log の完全リプレイス。Podman Pod 化（Web: 8930, Worker: 10秒間隔）、パブリックリポジトリセキュリティ、MoneyBook 準拠 CI/CD。PR 1〜7 に細かく分割して実装。（PR 5 完了時点で非同期処理化計画へ移行） |
+| 2026-09-21 | バッチ処理・Webサーバーの非同期処理化 (asyncio対応) | **完了 (Completed)** | [plans/2026-09-21-async-execution-plan.md](plans/2026-09-21-async-execution-plan.md) | Web サーバーおよび常駐バッチワーカー全般の `asyncio` 非同期化。`httpx`, `aiomysql`/`asyncmy`, ASGI 対応等によるリアルタイム性・レスポンス性能向上。PR Async 1〜6 に分割して実装。 |

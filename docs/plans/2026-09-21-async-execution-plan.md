@@ -2,7 +2,7 @@
 
 - **起票日**: 2026-09-21
 - **対象**: `HomeIotManager` の Web サーバーおよびバッチワーカーの `asyncio` 非同期化
-- **ステータス**: 計画確定 (Ready for Implementation)
+- **ステータス**: 完了 (Completed)
 - **関連計画書**: [docs/plans/2026-09-20-migration-from-in-out-log.md](2026-09-20-migration-from-in-out-log.md)
 - **システム仕様書**: [docs/architecture.md](../architecture.md)
 
@@ -73,6 +73,6 @@ flowchart TD
 - [x] PR Async 3: 非同期コアビジネスロジック層
 - [x] PR Async 4: 非同期 Web サーバー層 (FastAPI化)
 - [x] PR Async 5: 常駐非同期バッチワーカー & CLI
-- [ ] PR Async 6: コンテナ & デプロイ構成更新
-- [ ] 全ユニットテスト pass & カバレッジ確認
-- [ ] 本番デプロイ準備完了
+- [x] PR Async 6: コンテナ & デプロイ構成更新
+- [x] 全ユニットテスト pass & カバレッジ確認
+- [x] 本番デプロイ準備完了
