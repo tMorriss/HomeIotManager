@@ -1,12 +1,12 @@
-'''HomeIotManager - Flask アプリケーションファクトリ モジュール
+'''HomeIotManager - FastAPI アプリケーションファクトリ モジュール
 
-Flask アプリケーションの生成、環境設定、Blueprint の登録を行います。
+FastAPI アプリケーションの生成、環境設定、ルーターの登録を行います。
 '''
 
 import logging
 from typing import Optional
 
-from flask import Flask
+from fastapi import FastAPI
 
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
@@ -14,8 +14,8 @@ from homeiot.clients.switchbot import SwitchBotClient
 from homeiot.config import Config
 from homeiot.db.connector import DBConnector
 from homeiot.services.home_service import HomeService
-from homeiot.web.health import health_bp
-from homeiot.web.webhook import webhook_bp
+from homeiot.web.health import health_router
+from homeiot.web.webhook import webhook_router
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,9 @@ def create_app(
     db_connector: Optional[DBConnector] = None,
     switchbot_client: Optional[SwitchBotClient] = None,
     home_service: Optional[HomeService] = None,
-) -> Flask:
-    '''Flask アプリケーションインスタンスを生成・構築します。'''
-    app = Flask(__name__)
+) -> FastAPI:
+    '''FastAPI アプリケーションインスタンスを生成・構築します。'''
+    app = FastAPI(title='HomeIotManager')
 
     if config is None:
         config = Config()
@@ -48,12 +48,12 @@ def create_app(
             ifttt_client=ifttt_client,
         )
 
-    app.config_obj = config
-    app.db_connector = db_connector
-    app.switchbot_client = switchbot_client
-    app.home_service = home_service
+    app.state.config_obj = config
+    app.state.db_connector = db_connector
+    app.state.switchbot_client = switchbot_client
+    app.state.home_service = home_service
 
-    app.register_blueprint(health_bp)
-    app.register_blueprint(webhook_bp)
+    app.include_router(health_router)
+    app.include_router(webhook_router)
 
     return app

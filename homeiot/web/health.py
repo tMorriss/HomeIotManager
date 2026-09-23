@@ -1,11 +1,11 @@
 '''HomeIotManager - ヘルスチェック ルーティングモジュール'''
 
-from flask import Blueprint
+from fastapi import APIRouter, Response, status
 
-health_bp = Blueprint('health', __name__)
+health_router = APIRouter()
 
 
-@health_bp.route('/healthz', methods=['GET'])
+@health_router.get('/healthz', status_code=status.HTTP_204_NO_CONTENT)
 def healthz():
     '''ヘルスチェックエンドポイント'''
-    return '', 204
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
