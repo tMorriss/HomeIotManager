@@ -4,5 +4,5 @@ from pydantic import BaseModel
 
 
 class ErrorResponse(BaseModel):
-    '''エラーレスポンス スキーマ'''
-    message: str
+    '''エラーレスポンス スキーマ (RFC 9457 RFC Problem Details 準拠)'''
+    title: str

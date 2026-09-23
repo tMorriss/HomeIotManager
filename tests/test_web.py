@@ -49,7 +49,7 @@ class TestWebApp:
 
         response = client.post('/switchbot/all')
         assert response.status_code == 401
-        assert response.json() == {'message': 'Unauthorized'}
+        assert response.json() == {'title': 'Unauthorized'}
         mock_switchbot_client.verify_token.assert_called_with(None)
 
     def test_switchbot_webhook_unauthorized_invalid_token(self, app_setup):
@@ -59,7 +59,7 @@ class TestWebApp:
 
         response = client.post('/switchbot/all?token=wrong_token')
         assert response.status_code == 401
-        assert response.json() == {'message': 'Unauthorized'}
+        assert response.json() == {'title': 'Unauthorized'}
         mock_switchbot_client.verify_token.assert_called_with('wrong_token')
 
     def test_switchbot_webhook_success_motion_detected(self, app_setup):
@@ -114,7 +114,7 @@ class TestWebApp:
 
         response = client.post('/switchbot/all?token=secret_token', json={})
         assert response.status_code == 500
-        assert response.json() == {'message': 'Internal Server Error'}
+        assert response.json() == {'title': 'Internal Server Error'}
 
     def test_create_app_defaults(self, mocker):
         '''create_app が引数なし（デフォルト）で正常に初期化されるかのテスト'''

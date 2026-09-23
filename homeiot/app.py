@@ -63,7 +63,7 @@ def create_app(
         logger.error('Unhandled exception occurred: %s', exc, exc_info=True)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=ErrorResponse(message='Internal Server Error').model_dump(),
+            content=ErrorResponse(title='Internal Server Error').model_dump(),
         )
 
     return app

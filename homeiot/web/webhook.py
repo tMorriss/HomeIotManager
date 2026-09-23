@@ -33,7 +33,7 @@ async def handle_switchbot_webhook(request: Request, token: Optional[str] = None
         logger.warning('Unauthorized SwitchBot webhook access attempt.')
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content=ErrorResponse(message='Unauthorized').model_dump(),
+            content=ErrorResponse(title='Unauthorized').model_dump(),
         )
 
     try:
