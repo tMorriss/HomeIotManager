@@ -26,7 +26,6 @@ class BatchWorker:
         config: Optional[Config] = None,
         db_connector: Optional[DBConnector] = None,
         home_service: Optional[HomeService] = None,
-        interval: int = constants.CHECK_INTERVAL_SECONDS,
     ):
         self.config = config or Config()
         self.db = db_connector or DBConnector(self.config)
@@ -41,7 +40,7 @@ class BatchWorker:
             )
         else:
             self.home_service = home_service
-        self.interval = interval
+        self.interval = constants.CHECK_INTERVAL_SECONDS
         self.running = False
         self._shutdown_event = asyncio.Event()
 

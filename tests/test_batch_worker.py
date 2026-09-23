@@ -45,12 +45,11 @@ class TestBatchWorker:
             config=mock_config,
             db_connector=mock_db,
             home_service=mock_service,
-            interval=5,
         )
         assert worker.config == mock_config
         assert worker.db == mock_db
         assert worker.home_service == mock_service
-        assert worker.interval == 5
+        assert worker.interval == 10
 
     async def test_run_once_success(self):
         '''run_once が home_service.handle_presence_check を呼び出すことの検証'''
@@ -69,14 +68,14 @@ class TestBatchWorker:
         await worker.run_once()
         assert 'Error occurred during presence check' in caplog.text
 
-    async def test_start_loop_and_stop(self):
+    async def test_start_loop_and_stop(self, monkeypatch):
         '''start 実行後に一定回数ループが動作し、request_stop で安全に停止することの検証'''
         mock_service = AsyncMock()
         mock_db = AsyncMock()
+        monkeypatch.setattr('homeiot.constants.CHECK_INTERVAL_SECONDS', 1)
         worker = BatchWorker(
             home_service=mock_service,
             db_connector=mock_db,
-            interval=1,
         )
 
         call_count = 0
