@@ -11,9 +11,8 @@ if echo "${COMMIT_MSG}" | grep -q "\[skip ci\]"; then
 fi
 
 # 2. 必須環境変数のバリデーション
-PODMAN_USER="${PODMAN_USER:-podman}"
-
 REQUIRED_VARS=(
+    "PODMAN_USER"
     "DB_HOST"
     "DB_PORT"
     "DB_USER"
