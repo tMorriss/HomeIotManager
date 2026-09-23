@@ -6,8 +6,7 @@ SwitchBot 人感センサー等からの Webhook イベントを受信・処理�
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from homeiot.web.schemas import ErrorResponse
 
@@ -31,9 +30,9 @@ async def handle_switchbot_webhook(request: Request, token: Optional[str] = None
 
     if not switchbot_client.verify_token(token):
         logger.warning('Unauthorized SwitchBot webhook access attempt.')
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            content=ErrorResponse(title='Unauthorized').model_dump(),
+            detail='Unauthorized',
         )
 
     try:

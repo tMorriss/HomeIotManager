@@ -6,7 +6,7 @@ FastAPI アプリケーションの生成、環境設定、ルーターの登録
 import logging
 from typing import Optional
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from homeiot.clients.hue import HueClient
@@ -57,6 +57,15 @@ def create_app(
 
     app.include_router(health_router)
     app.include_router(webhook_router)
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException):
+        detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorResponse(title=detail).model_dump(),
+            headers=exc.headers,
+        )
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
