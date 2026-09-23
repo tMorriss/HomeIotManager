@@ -6,14 +6,24 @@ SwitchBot 人感センサー等からの Webhook イベントを受信・処理�
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Request, Response, status
+from fastapi.responses import JSONResponse
+
+from homeiot.web.schemas import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
 webhook_router = APIRouter()
 
 
-@webhook_router.post('/switchbot/all', status_code=status.HTTP_204_NO_CONTENT)
+@webhook_router.post(
+    '/switchbot/all',
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: {'model': ErrorResponse, 'description': 'Unauthorized'},
+        500: {'model': ErrorResponse, 'description': 'Internal Server Error'},
+    },
+)
 async def handle_switchbot_webhook(request: Request, token: Optional[str] = None):
     '''SwitchBot Webhook エンドポイント'''
     switchbot_client = request.app.state.switchbot_client
@@ -21,9 +31,9 @@ async def handle_switchbot_webhook(request: Request, token: Optional[str] = None
 
     if not switchbot_client.verify_token(token):
         logger.warning('Unauthorized SwitchBot webhook access attempt.')
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={'message': 'Unauthorized'},
+            content=ErrorResponse(message='Unauthorized').model_dump(),
         )
 
     try:

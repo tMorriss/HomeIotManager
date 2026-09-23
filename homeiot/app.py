@@ -16,6 +16,7 @@ from homeiot.config import Config
 from homeiot.db.connector import DBConnector
 from homeiot.services.home_service import HomeService
 from homeiot.web.health import health_router
+from homeiot.web.schemas import ErrorResponse
 from homeiot.web.webhook import webhook_router
 
 logger = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ def create_app(
         logger.error('Unhandled exception occurred: %s', exc, exc_info=True)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={'detail': {'message': 'Internal Server Error'}},
+            content=ErrorResponse(message='Internal Server Error').model_dump(),
         )
 
     return app
