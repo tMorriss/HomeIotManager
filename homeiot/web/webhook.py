@@ -4,27 +4,36 @@ SwitchBot 人感センサー等からの Webhook イベントを受信・処理�
 '''
 
 import logging
+from typing import Optional
 
-from flask import Blueprint, current_app, jsonify, request
+from fastapi import APIRouter, HTTPException, Request, Response, status
 
 logger = logging.getLogger(__name__)
 
-webhook_bp = Blueprint('webhook', __name__)
+webhook_router = APIRouter()
 
 
-@webhook_bp.route('/switchbot/all', methods=['POST'])
-async def handle_switchbot_webhook():
+@webhook_router.post('/switchbot/all', status_code=status.HTTP_204_NO_CONTENT)
+async def handle_switchbot_webhook(request: Request, token: Optional[str] = None):
     '''SwitchBot Webhook エンドポイント'''
-    token = request.args.get('token')
+    switchbot_client = request.app.state.switchbot_client
+    home_service = request.app.state.home_service
 
-    if not current_app.switchbot_client.verify_token(token):
+    if not switchbot_client.verify_token(token):
         logger.warning('Unauthorized SwitchBot webhook access attempt.')
-        return jsonify({'message': 'Unauthorized'}), 401
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={'message': 'Unauthorized'},
+        )
 
-    payload = request.get_json(silent=True) or {}
-    parsed = current_app.switchbot_client.parse_webhook_payload(payload)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    parsed = switchbot_client.parse_webhook_payload(payload)
     is_motion_detected = parsed.get('is_motion_detected', False)
 
-    await current_app.home_service.handle_presence_check(motion_detected=is_motion_detected)
+    await home_service.handle_presence_check(motion_detected=is_motion_detected)
 
-    return '', 204
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
