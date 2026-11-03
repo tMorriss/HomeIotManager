@@ -1,0 +1,26 @@
+[Unit]
+Description=HomeIotManager Web Container
+After=homeiot-pod.service
+
+[Container]
+ContainerName=homeiot-web
+Image=localhost/homeiot:${BUILD_TAG}
+Pod=homeiot.pod
+Exec=python -m homeiot.cli web
+Secret=homeiot_db_host,type=env,target=DB_HOST
+Secret=homeiot_db_port,type=env,target=DB_PORT
+Secret=homeiot_db_user,type=env,target=DB_USER
+Secret=homeiot_db_pass,type=env,target=DB_PASS
+Secret=homeiot_db_name,type=env,target=DB_NAME
+Secret=homeiot_target_phone_ips,type=env,target=TARGET_PHONE_IPS
+Secret=homeiot_hue_bridge_ip,type=env,target=HUE_BRIDGE_IP
+Secret=homeiot_hue_api_user,type=env,target=HUE_API_USER
+Secret=homeiot_hue_on_scene_id,type=env,target=HUE_ON_SCENE_ID
+Secret=homeiot_ifttt_webhook_key,type=env,target=IFTTT_WEBHOOK_KEY
+Secret=homeiot_switchbot_webhook_token,type=env,target=SWITCHBOT_WEBHOOK_TOKEN
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

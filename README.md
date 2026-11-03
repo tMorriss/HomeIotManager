@@ -68,7 +68,32 @@ tox
 
 ---
 
-## 3. ドキュメント
+## 3. デプロイ
+
+HomeIotManager は Podman Quadlet とユーザー systemd サービスで動作します。Jenkins ジョブは、Podman を運用する Linux ユーザー自身として `build/jenkins.sh` を実行してください。スクリプトは実行ユーザーの rootless Podman と `$HOME/.config/containers/systemd/homeiot/` を使って Quadlet ユニットを配置し、`homeiot-pod.service` と各コンテナを起動します。Web と Worker は `homeiot-pod` 内の別コンテナとして起動し、ホストのポート `8930` を Web のポート `8001` に転送します。
+
+設定値は Podman Secrets として管理され、Quadlet 経由で各コンテナの環境変数に渡されます。ホスト再起動後の自動起動には、管理者が実行ユーザーの linger を事前に有効にしておく必要があります（デプロイスクリプトでは変更しません）。Jenkins に以下の環境変数を登録してください。
+
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`: MySQL 接続情報
+- `TARGET_PHONE_IPS`: 在宅判定対象のスマートフォン IP アドレス（カンマ区切り）
+- `HUE_BRIDGE_IP`, `HUE_API_USER`, `HUE_ON_SCENE_ID`: Philips Hue 接続情報
+- `IFTTT_WEBHOOK_KEY`: IFTTT Webhook キー
+- `SWITCHBOT_WEBHOOK_TOKEN`: SwitchBot Webhook 検証トークン
+
+### サービスの操作
+
+Jenkins ジョブを実行する Linux ユーザーで操作します。
+
+```bash
+systemctl --user status homeiot-pod.service
+systemctl --user restart homeiot-pod.service
+systemctl --user stop homeiot-pod.service
+journalctl --user -u homeiot-pod.service
+journalctl --user -u homeiot-web.service
+journalctl --user -u homeiot-worker.service
+```
+
+## 4. ドキュメント
 
 - [システム仕様書 (docs/architecture.md)](docs/architecture.md)
 - [開発・運用ガイド (AGENTS.md)](AGENTS.md)

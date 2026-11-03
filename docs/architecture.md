@@ -28,9 +28,9 @@ flowchart TD
     subgraph Host["ホストマシン (Linux / Podman)"]
         Nginx["ホスト Nginx / リバースプロキシ\n(HTTPS: tmorriss.com)"]
         
-        subgraph Pod["Podman Pod: homeiot-pod (hostNetwork: true)"]
+        subgraph Pod["Podman Quadlet Pod: homeiot-pod"]
             direction TB
-            WebContainer["Web コンテナ\n(Gunicorn + Flask)\nListen: 0.0.0.0:8930"]
+            WebContainer["Web コンテナ\n(FastAPI)\nListen: 0.0.0.0:8001"]
             WorkerContainer["Worker コンテナ\n(常駐バッチループ)\n10秒間隔で監視"]
         end
 
@@ -62,23 +62,23 @@ flowchart TD
 
 ---
 
-## 3. コンテナ設計 (Podman Pod)
+## 3. コンテナ設計 (Podman Quadlet)
 
-MoneyBook のサイドカー構成を踏襲し、Kubernetes 互換の Pod 定義（`build/pod.yaml`）により 1つの Pod `homeiot-pod` として動作します。
+MoneyBook と同様に、Quadlet の `.pod` と `.container` ユニット（`build/quadlet/`）で1つの Pod `homeiot-pod` と2つのコンテナを管理します。Jenkins ジョブはPodmanを運用するLinuxユーザー自身として実行し、そのユーザーのrootless Podman・ユーザーsystemdを使用します。ユニットは実行ユーザーの `$HOME/.config/containers/systemd/homeiot/` に配置します。Pod のポート転送はホスト `8930` からコンテナ `8001` です。
 
-- **Web コンテナ (`homeiot_web`)**:
-  - Gunicorn + Flask
-  - ポート **8930** でリッスン（ホスト側の Nginx 等からプロキシ）
+- **Web コンテナ (`homeiot-web`)**:
+  - Uvicorn + FastAPI
+  - コンテナ内ポート **8001** でリッスン（ホスト側では **8930** で公開）
   - エンドポイント:
     - `POST /switchbot/all`: SwitchBot 人感センサー（`WoPresence`）の検知 Webhook 受信（トークン検証付き）
     - `GET /healthz`: ヘルスチェック用エンドポイント
   ※ 保守コスト削減のため、ルンバ稼働抑制日（`roomy_lock`）の Web UI 設定画面（`/settings`）は非搭載とし、DB テーブルおよびバックエンド判定ロジックのみを保持します。
-- **Worker コンテナ (`homeiot_worker`)**:
+- **Worker コンテナ (`homeiot-worker`)**:
   - 常駐 Python プロセス
   - 10秒間隔（定数 `CHECK_INTERVAL_SECONDS`）で在宅監視ループを実行
   - スマホへの Ping 疎通確認、在宅・外出の判定、ルンバ・照明の自動制御、DB 記録
-- **ホストネットワーク共有 (`hostNetwork: true`)**:
-  - Worker コンテナから宅内 LAN 上のスマートフォンへ ICMP Ping を直接送信する必要があること、およびローカルの Philips Hue ブリッジと直接通信するため、Pod 定義で `hostNetwork: true` を採用します。
+- **LAN 接続**:
+  - Worker は Podman の rootless ネットワークから宅内スマートフォンへ ICMP Ping を送り、Hue ブリッジへ接続します。Pod のホストポート公開は Web への受信接続に使用します。
 
 ---
 
@@ -152,7 +152,6 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 
 | 環境変数名 | 必須 | 説明 |
 |---|---|---|
-| `PODMAN_USER` | 任意 | Podman を実行するホスト上のユーザー名（Jenkins スクリプトで使用） |
 | `DB_HOST` | **必須** | MySQL サーバーホスト |
 | `DB_PORT` | **必須** | MySQL 接続ポート (例: `3306`) |
 | `DB_USER` | **必須** | MySQL 接続ユーザー名 |
@@ -180,30 +179,31 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 | `ROOMY_SLEEP_END_HOUR` | `6` | ルンバ稼働を禁止する早朝終了時刻（6時） |
 | `HUE_ON_GROUP_ID` | `'2'` | 帰宅時点灯対象の Hue グループ ID |
 | `HUE_OFF_GROUP_ID` | `'3'` | 外出時消灯対象の Hue グループ ID |
-| `WEB_PORT` | `8930` | Web サーバーのリッスンポート |
+| `WEB_PORT` | `8001` | Web コンテナ内のリッスンポート（ホスト側は `8930`） |
 
 ---
 
 ## 7. デプロイメント設計 (MoneyBook 準拠)
 
-MoneyBook の方式に準拠し、Jenkins パイプラインから `build/jenkins.sh` を実行してデプロイします。
+MoneyBook の Quadlet 方式に準拠し、Jenkins パイプラインから `build/jenkins.sh` を実行してデプロイします。Jenkins ジョブの実行ユーザーがPodman・systemdの実行ユーザーになります。全てのアプリケーション設定値は Podman Secrets に登録し、Web / Worker コンテナの環境変数として注入します。ユニットは実行ユーザーの `$HOME/.config/containers/systemd/homeiot/` に配置されます。
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Jenkins as Jenkins
     participant Host as ホスト (Podman)
+    participant Systemd as ユーザー systemd / Quadlet
     participant Pod as homeiot-pod
 
     Jenkins->>Jenkins: [skip ci] コミットチェック
     Jenkins->>Jenkins: 必須環境変数のバリデーション
     Jenkins->>Jenkins: ランダムな BUILD_TAG 生成
     Jenkins->>Host: ベースイメージ (python:3.12-slim) pull
-    Jenkins->>Host: podman build (homeiot:BUILD_TAG)
-    Jenkins->>Host: 既存 Pod の停止・削除 (podman pod rm -f homeiot-pod)
-    Jenkins->>Host: envsubst で build/pod.yaml に環境変数展開
-    Jenkins->>Host: podman play kube で Pod 起動
-    Jenkins->>Host: ヘルスチェック & 起動確認
+    Jenkins->>Host: podman build (localhost/homeiot:BUILD_TAG)
+    Jenkins->>Host: 既存 Pod の停止・削除
+    Jenkins->>Host: 設定値を Podman Secrets に登録
+    Jenkins->>Systemd: Quadlet ユニット配置・daemon-reload・再起動
+    Systemd->>Pod: homeiot-pod.service 起動
     Jenkins->>Host: 旧タグイメージのクリーンアップ
 ```
 

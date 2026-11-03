@@ -1,0 +1,9 @@
+[Unit]
+Description=HomeIotManager Pod
+
+[Pod]
+PodName=homeiot-pod
+PublishPort=8930:8001
+
+[Install]
+WantedBy=default.target
