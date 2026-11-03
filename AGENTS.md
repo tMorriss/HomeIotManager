@@ -23,7 +23,7 @@
 - **言語 / ランタイム**: Python 3.12
 - **Web フレームワーク**: Flask, Gunicorn
 - **データベース**: MySQL (mysql-connector-python)
-- **コンテナ / デプロイ**: Podman (Pod / `podman play kube`), Jenkins
+- **コンテナ / デプロイ**: Podman Quadlet (rootless Pod / systemd user service), Jenkins
 - **コード品質 / テスト**:
   - `tox`: 環境分離・テストランナー
   - `flake8`: コード規約チェック（`flake8-quotes`, `flake8-import-order`, `pep8-naming`）
