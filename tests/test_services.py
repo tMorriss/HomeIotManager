@@ -85,6 +85,8 @@ class TestHomeService:
         assert service.is_lighting_time(dt_night) is True
         assert service.is_lighting_time(dt_midnight) is True
         assert service.is_lighting_time(dt_day) is False
+        assert service.is_lighting_time(datetime(2026, 9, 20, 6, 0, 0)) is True
+        assert service.is_lighting_time(datetime(2026, 9, 20, 7, 0, 0)) is False
 
         # Test fallback to datetime.now()
         mock_dt = mocker.patch('homeiot.services.home_service.datetime')
@@ -110,6 +112,8 @@ class TestHomeService:
         assert service.is_roomy_sleeping_time(dt_night) is True
         assert service.is_roomy_sleeping_time(dt_early) is True
         assert service.is_roomy_sleeping_time(dt_noon) is False
+        assert service.is_roomy_sleeping_time(datetime(2026, 9, 20, 6, 0, 0)) is True
+        assert service.is_roomy_sleeping_time(datetime(2026, 9, 20, 7, 0, 0)) is False
 
         # Test fallback to datetime.now()
         mock_dt = mocker.patch('homeiot.services.home_service.datetime')
@@ -144,11 +148,11 @@ class TestHomeService:
         service, _, mock_db, mock_hue_client, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=True)
         now = datetime(2026, 9, 20, 19, 0, 0)
-        last_out = now - timedelta(minutes=10)
+        last_in = now - timedelta(minutes=10)
 
         async def get_last_side_effect(name):
-            if name == LastName.OUT:
-                return last_out
+            if name == LastName.IN:
+                return last_in
             return None
 
         mock_db.get_last.side_effect = get_last_side_effect
@@ -156,24 +160,28 @@ class TestHomeService:
         res = await service.handle_presence_check(motion_detected=True, current_time=now)
 
         assert res is True
-        mock_db.set_last.assert_called_once_with(LastName.IN, now)
+        mock_db.set_last.assert_any_call(LastName.IN, now)
+        mock_db.set_last.assert_any_call(LastName.OUT, now)
         mock_ifttt_client.dock_roomy.assert_called_once()
         mock_hue_client.activate_scene.assert_called_once_with(
             constants.HUE_ON_GROUP_ID, 'scene-123'
         )
         mock_ifttt_client.turn_on_ceiling_light.assert_called_once()
-        mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
+        assert mock_db.add_in_out_log.await_args_list == [
+            mocker.call(InOutValue.OUT, last_in),
+            mocker.call(InOutValue.IN, now),
+        ]
 
     @pytest.mark.asyncio
     async def test_handle_presence_check_present_returning_daytime_no_lighting(self, home_service_setup, mocker):
         service, _, mock_db, mock_hue_client, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=True)
         now = datetime(2026, 9, 20, 12, 0, 0)
-        last_out = now - timedelta(minutes=10)
+        last_in = now - timedelta(minutes=10)
 
         async def get_last_side_effect(name):
-            if name == LastName.OUT:
-                return last_out
+            if name == LastName.IN:
+                return last_in
             return None
 
         mock_db.get_last.side_effect = get_last_side_effect
@@ -184,7 +192,10 @@ class TestHomeService:
         mock_ifttt_client.dock_roomy.assert_called_once()
         mock_hue_client.activate_scene.assert_not_called()
         mock_ifttt_client.turn_on_ceiling_light.assert_not_called()
-        mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
+        assert mock_db.add_in_out_log.await_args_list == [
+            mocker.call(InOutValue.OUT, last_in),
+            mocker.call(InOutValue.IN, now),
+        ]
 
     @pytest.mark.asyncio
     async def test_handle_presence_check_present_returning_by_threshold(self, home_service_setup, mocker):
@@ -192,13 +203,10 @@ class TestHomeService:
         mocker.patch.object(HomeService, 'is_present', return_value=True)
         now = datetime(2026, 9, 20, 12, 0, 0)
         last_in = now - timedelta(minutes=10)
-        last_out = now - timedelta(seconds=constants.OUT_THRESHOLD_SECONDS + 1)
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
                 return last_in
-            if name == LastName.OUT:
-                return last_out
             return None
 
         mock_db.get_last.side_effect = get_last_side_effect
@@ -207,7 +215,30 @@ class TestHomeService:
 
         assert res is True
         mock_ifttt_client.dock_roomy.assert_called_once()
-        mock_db.add_in_out_log.assert_called_once_with(InOutValue.IN, now)
+        assert mock_db.add_in_out_log.await_args_list == [
+            mocker.call(InOutValue.OUT, last_in),
+            mocker.call(InOutValue.IN, now),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_present_continuously_does_not_repeat_arrival(self, home_service_setup, mocker):
+        service, _, mock_db, _, mock_ifttt_client = home_service_setup
+        mocker.patch.object(HomeService, 'is_present', return_value=True)
+        now = datetime(2026, 9, 20, 19, 0, 0)
+
+        async def get_last_side_effect(name):
+            if name == LastName.IN:
+                return now - timedelta(seconds=10)
+            if name == LastName.OUT:
+                return now - timedelta(hours=2)
+            return None
+
+        mock_db.get_last.side_effect = get_last_side_effect
+
+        await service.handle_presence_check(current_time=now)
+
+        mock_ifttt_client.dock_roomy.assert_not_called()
+        mock_db.add_in_out_log.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handle_presence_check_out_initial(self, home_service_setup, mocker):
@@ -219,7 +250,7 @@ class TestHomeService:
         res = await service.handle_presence_check(motion_detected=False, current_time=now)
 
         assert res is False
-        mock_db.set_last.assert_not_called()
+        mock_db.set_last.assert_called_once_with(LastName.IN, now)
         mock_db.add_in_out_log.assert_not_called()
 
     @pytest.mark.asyncio
@@ -228,10 +259,16 @@ class TestHomeService:
         mocker.patch.object(HomeService, 'is_present', return_value=False)
         now = datetime(2026, 9, 20, 14, 0, 0)
         last_in = now - timedelta(seconds=constants.HUE_THRESHOLD_SECONDS + 10)
+        last_out = last_in - timedelta(minutes=10)
+        last_hue_off = now - timedelta(seconds=constants.HUE_THRESHOLD_SECONDS + 10)
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
                 return last_in
+            if name == LastName.OUT:
+                return last_out
+            if name == LastName.HUE_OFF:
+                return last_hue_off
             return None
 
         mock_db.get_last.side_effect = get_last_side_effect
@@ -242,10 +279,10 @@ class TestHomeService:
         res = await service.handle_presence_check(motion_detected=False, current_time=now)
 
         assert res is False
-        mock_db.set_last.assert_any_call(LastName.OUT, now)
-        mock_db.add_in_out_log.assert_called_once_with(InOutValue.OUT, now)
+        mock_db.add_in_out_log.assert_not_called()
 
         # Light turning off
+        mock_hue_client.is_any_on.assert_awaited_once_with(constants.HUE_ON_GROUP_ID)
         mock_hue_client.turn_off_group.assert_called_once_with(constants.HUE_OFF_GROUP_ID)
         mock_ifttt_client.turn_off_ceiling_light.assert_called_once()
 
@@ -272,7 +309,8 @@ class TestHomeService:
 
         await service.handle_presence_check(motion_detected=False, current_time=now)
 
-        # Since last_out > last_in, OUT log is not added again
+        # 帰宅直後の猶予中は、在宅時刻だけを更新する。
+        mock_db.set_last.assert_called_once_with(LastName.IN, now)
         mock_db.add_in_out_log.assert_not_called()
 
     @pytest.mark.asyncio
@@ -281,10 +319,13 @@ class TestHomeService:
         mocker.patch.object(HomeService, 'is_present', return_value=False)
         now = datetime(2026, 9, 20, 14, 0, 0)
         last_in = now - timedelta(seconds=constants.HUE_THRESHOLD_SECONDS + 10)
+        last_out = last_in - timedelta(minutes=10)
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
                 return last_in
+            if name == LastName.OUT:
+                return last_out
             return None
 
         mock_db.get_last.side_effect = get_last_side_effect
@@ -297,16 +338,19 @@ class TestHomeService:
         mock_db.set_last.assert_any_call(LastName.HUE_OFF, now)
 
     @pytest.mark.asyncio
-    async def test_check_and_turn_off_lights_already_off_for_this_outing(self, home_service_setup, mocker):
+    async def test_check_and_turn_off_lights_uses_last_hue_off_timestamp(self, home_service_setup, mocker):
         service, _, mock_db, mock_hue_client, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=False)
         now = datetime(2026, 9, 20, 14, 0, 0)
         last_in = now - timedelta(seconds=constants.HUE_THRESHOLD_SECONDS + 10)
+        last_out = last_in - timedelta(minutes=10)
         last_hue_off = now - timedelta(seconds=100)
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
                 return last_in
+            if name == LastName.OUT:
+                return last_out
             if name == LastName.HUE_OFF:
                 return last_hue_off
             return None
@@ -339,6 +383,18 @@ class TestHomeService:
         mock_db.get_last.return_value = last_in + timedelta(minutes=5)
         await service._check_and_start_roomy(last_in, now)
         mock_ifttt_client.start_roomy.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_roomy_attempt_is_recorded_even_when_ifttt_fails(self, home_service_setup):
+        service, _, mock_db, _, mock_ifttt_client = home_service_setup
+        now = datetime(2026, 9, 20, 14, 0, 0)
+        last_in = now - timedelta(minutes=30)
+        mock_ifttt_client.start_roomy.return_value = False
+
+        await service._check_and_start_roomy(last_in, now)
+
+        mock_ifttt_client.start_roomy.assert_awaited_once()
+        mock_db.set_last.assert_awaited_once_with(LastName.ROOMY, now)
 
     @pytest.mark.asyncio
     async def test_handle_presence_check_default_current_time(self, home_service_setup, mocker):

@@ -27,7 +27,7 @@ class IftttClient(BaseHttpClient):
             return False
         url = f'https://maker.ifttt.com/trigger/{event_name}/with/key/{self.webhook_key}'
         try:
-            res = await self.client.post(url, timeout=5.0)
+            res = await self.client.get(url, timeout=5.0)
             res.raise_for_status()
             return True
         except Exception as e:

@@ -27,7 +27,7 @@ class SwitchBotClient:
         例:
         {
             'eventType': 'changeReport',
-            'eventVersion': '1.0',
+            'eventVersion': '1',
             'context': {
                 'deviceType': 'WoPresence',
                 'detectionState': 'DETECTED',
@@ -36,21 +36,61 @@ class SwitchBotClient:
         }
         '''
         if not isinstance(payload, dict):
-            return {'is_motion_detected': False, 'device_type': None, 'detection_state': None}
+            return {
+                'is_valid': False,
+                'is_motion_detected': False,
+                'device_type': None,
+                'detection_state': None,
+                'error': 'invalid payload',
+            }
 
-        context = payload.get('context', {})
+        if payload.get('eventType') != 'changeReport':
+            return {
+                'is_valid': False,
+                'is_motion_detected': False,
+                'device_type': None,
+                'detection_state': None,
+                'error': 'invalid eventType',
+            }
+
+        if payload.get('eventVersion') != '1':
+            return {
+                'is_valid': False,
+                'is_motion_detected': False,
+                'device_type': None,
+                'detection_state': None,
+                'error': 'invalid eventVersion',
+            }
+
+        context = payload.get('context')
         if not isinstance(context, dict):
-            context = {}
+            return {
+                'is_valid': False,
+                'is_motion_detected': False,
+                'device_type': None,
+                'detection_state': None,
+                'error': 'missing context',
+            }
 
-        device_type = context.get('deviceType') or payload.get('deviceType')
-        detection_state = context.get('detectionState') or payload.get('detectionState')
+        device_type = context.get('deviceType')
+        detection_state = context.get('detectionState')
+        if device_type is None or detection_state is None:
+            return {
+                'is_valid': False,
+                'is_motion_detected': False,
+                'device_type': device_type,
+                'detection_state': detection_state,
+                'error': 'missing context fields',
+            }
 
         is_motion_detected = (
             device_type == 'WoPresence' and detection_state == 'DETECTED'
         )
 
         return {
+            'is_valid': True,
             'is_motion_detected': is_motion_detected,
             'device_type': device_type,
             'detection_state': detection_state,
+            'error': None,
         }
