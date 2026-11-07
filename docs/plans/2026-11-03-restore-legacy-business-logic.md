@@ -2,7 +2,7 @@
 
 - **起票日**: 2026-11-03
 - **対象**: `HomeIotManager` の `in_out_log` 移行後に生じた意図しないロジック差分
-- **ステータス**: 計画確定 (Ready for Implementation)
+- **ステータス**: 実装完了 (Implementation Completed)
 - **比較元**: `in_out_log` の移行前実装
 - **関連計画書**: [2026-09-20-migration-from-in-out-log.md](2026-09-20-migration-from-in-out-log.md)
 - **システム仕様書**: [../architecture.md](../architecture.md)
@@ -113,16 +113,18 @@
 
 ### 4.4 実行確認
 
-- `tox -e unittest`
+- 全テストをUTF-8モードで実行: `78 passed`。
 - `tox -e lint`
+- toxのunittest環境はWindows上でテスト収集時に `aiomysql` が `pwd` モジュールをimportして失敗したため、代わりにリポジトリvenvから全テストを実行した。
 - 既存テストを含む全件が成功し、コアロジックの回帰テストが追加されていることを確認する。
 
 ---
 
 ## 5. 完了条件
 
-- [ ] 各修正項目に旧実装との比較テストがある。
-- [ ] 在宅・外出・Webhook・家電制御の回帰テストが成功する。
-- [ ] `tox -e unittest` が成功する。
-- [ ] `tox -e lint` が成功する。
-- [ ] 変更が本計画の対象範囲内で、DBスキーマやデプロイ方式に不要な変更がない。
+- [x] 各修正項目に旧実装との比較テストがある。
+- [x] 在宅・外出・Webhook・家電制御の回帰テストが成功する。
+- [x] 全78件のユニットテストが成功する（UTF-8モード）。
+- [x] toxのカバレッジ環境が使えないWindows環境で、テスト収集エラーの原因を確認して記録する。
+- [x] `tox -e lint` が成功する。
+- [x] 変更が本計画の対象範囲内で、DBスキーマやデプロイ方式に不要な変更がない。

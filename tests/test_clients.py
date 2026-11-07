@@ -193,11 +193,11 @@ class TestIftttClient:
         client, mock_async_client = ifttt_setup
         mock_res = mocker.MagicMock()
         mock_res.raise_for_status.return_value = None
-        mock_async_client.post = mocker.AsyncMock(return_value=mock_res)
+        mock_async_client.get = mocker.AsyncMock(return_value=mock_res)
 
         res = await client.trigger_event('test_event')
         assert res is True
-        mock_async_client.post.assert_called_once_with(
+        mock_async_client.get.assert_called_once_with(
             'https://maker.ifttt.com/trigger/test_event/with/key/ifttt-key-123',
             timeout=5.0,
         )
@@ -210,7 +210,7 @@ class TestIftttClient:
     @pytest.mark.asyncio
     async def test_trigger_event_failure(self, ifttt_setup, mocker):
         client, mock_async_client = ifttt_setup
-        mock_async_client.post = mocker.AsyncMock(side_effect=httpx.RequestError('Error'))
+        mock_async_client.get = mocker.AsyncMock(side_effect=httpx.RequestError('Error'))
         res = await client.trigger_event('test_event')
         assert res is False
 
@@ -267,30 +267,59 @@ class TestSwitchBotClient:
     def test_parse_webhook_payload_valid_presence(self, client):
         payload = {
             'eventType': 'changeReport',
+            'eventVersion': '1',
             'context': {
                 'deviceType': 'WoPresence',
                 'detectionState': 'DETECTED',
             },
         }
         res = client.parse_webhook_payload(payload)
-        assert res['is_motion_detected'] is True
-        assert res['device_type'] == 'WoPresence'
-        assert res['detection_state'] == 'DETECTED'
+        assert res.is_motion_detected is True
+        assert res.is_valid is True
+        assert res.device_type == 'WoPresence'
+        assert res.detection_state == 'DETECTED'
 
     def test_parse_webhook_payload_other_device(self, client):
         payload = {
             'eventType': 'changeReport',
+            'eventVersion': '1',
             'context': {
                 'deviceType': 'WoContact',
                 'detectionState': 'DETECTED',
             },
         }
         res = client.parse_webhook_payload(payload)
-        assert res['is_motion_detected'] is False
+        assert res.is_motion_detected is False
 
     def test_parse_webhook_payload_invalid_structure(self, client):
         res = client.parse_webhook_payload('not a dict')
-        assert res['is_motion_detected'] is False
+        assert res.is_motion_detected is False
+        assert res.is_valid is False
 
-        res = client.parse_webhook_payload({'context': 'not a dict'})
-        assert res['is_motion_detected'] is False
+        res = client.parse_webhook_payload({
+            'eventType': 'changeReport',
+            'eventVersion': '1',
+            'context': 'not a dict',
+        })
+        assert res.is_motion_detected is False
+        assert res.is_valid is False
+
+        res = client.parse_webhook_payload({
+            'eventType': 'changeReport',
+            'eventVersion': '1',
+            'context': {'deviceType': 'WoPresence'},
+        })
+        assert res.is_valid is False
+
+    def test_parse_webhook_payload_rejects_unexpected_type_and_version(self, client):
+        payload = {
+            'eventType': 'changeReport',
+            'eventVersion': '1',
+            'context': {'deviceType': 'WoPresence', 'detectionState': 'DETECTED'},
+        }
+
+        wrong_type = {**payload, 'eventType': 'wrong'}
+        wrong_version = {**payload, 'eventVersion': '1.0'}
+
+        assert client.parse_webhook_payload(wrong_type).is_valid is False
+        assert client.parse_webhook_payload(wrong_version).is_valid is False
