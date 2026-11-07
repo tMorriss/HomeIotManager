@@ -49,7 +49,7 @@ flowchart TD
 
     %% 通信フロー
     SwitchBotCloud -->|"POST /switchbot/all"| Nginx
-    Nginx -->|"Proxy: http://127.0.0.1:8930"| WebContainer
+    Nginx -->|"Proxy: http://127.0.0.1:8082"| WebContainer
     WebContainer -->|"在宅検知時\n家電制御 & DB記録"| HueBridge
     WebContainer -->|"在宅検知時"| IFTTT
     WebContainer --> MySQL
@@ -64,13 +64,13 @@ flowchart TD
 
 ## 3. コンテナ設計 (Podman Quadlet)
 
-MoneyBook と同様に、Quadlet の `.pod` と `.container` ユニット（`build/quadlet/`）で1つの Pod `homeiot-pod` と2つのコンテナを管理します。Jenkins ジョブはPodmanを運用するLinuxユーザー自身として実行し、そのユーザーのrootless Podman・ユーザーsystemdを使用します。ユニットは実行ユーザーの `$HOME/.config/containers/systemd/homeiot/` に配置します。Pod のポート転送はホスト `8930` からコンテナ `8001` です。
+MoneyBook と同様に、Quadlet の `.pod` と `.container` ユニット（`build/quadlet/`）で1つの Pod `homeiot-pod` と2つのコンテナを管理します。Jenkins ジョブはPodmanを運用するLinuxユーザー自身として実行し、そのユーザーのrootless Podman・ユーザーsystemdを使用します。ユニットは実行ユーザーの `$HOME/.config/containers/systemd/homeiot/` に配置します。Pod のポート転送はホスト `8082` からコンテナ `8001` です。
 
 - **タイムゾーン**: Docker イメージに `tzdata` を含め、`TZ=Asia/Tokyo` と `/etc/localtime` を設定します。Web / Worker の `datetime.now()` および `DATETIME` 保存値は日本時間を基準にします。
 
 - **Web コンテナ (`homeiot-web`)**:
   - Uvicorn + FastAPI
-  - コンテナ内ポート **8001** でリッスン（ホスト側では **8930** で公開）
+  - コンテナ内ポート **8001** でリッスン（ホスト側では **8082** で公開）
   - エンドポイント:
     - `POST /switchbot/all`: SwitchBot 人感センサー（`WoPresence`）の検知 Webhook 受信（トークン検証付き）
     - `GET /healthz`: ヘルスチェック用エンドポイント
@@ -197,7 +197,7 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 | `ROOMY_SLEEP_END_HOUR` | `6` | ルンバ稼働を禁止する早朝終了時刻（6時） |
 | `HUE_ON_GROUP_ID` | `'2'` | 帰宅時点灯対象の Hue グループ ID |
 | `HUE_OFF_GROUP_ID` | `'3'` | 外出時消灯対象の Hue グループ ID |
-| `WEB_PORT` | `8001` | Web コンテナ内のリッスンポート（ホスト側は `8930`） |
+| `WEB_PORT` | `8001` | Web コンテナ内のリッスンポート（ホスト側は `8082`） |
 
 ---
 
