@@ -66,6 +66,8 @@ flowchart TD
 
 MoneyBook と同様に、Quadlet の `.pod` と `.container` ユニット（`build/quadlet/`）で1つの Pod `homeiot-pod` と2つのコンテナを管理します。Jenkins ジョブはPodmanを運用するLinuxユーザー自身として実行し、そのユーザーのrootless Podman・ユーザーsystemdを使用します。ユニットは実行ユーザーの `$HOME/.config/containers/systemd/homeiot/` に配置します。Pod のポート転送はホスト `8930` からコンテナ `8001` です。
 
+- **タイムゾーン**: Docker イメージに `tzdata` を含め、`TZ=Asia/Tokyo` と `/etc/localtime` を設定します。Web / Worker の `datetime.now()` および `DATETIME` 保存値は日本時間を基準にします。
+
 - **Web コンテナ (`homeiot-web`)**:
   - Uvicorn + FastAPI
   - コンテナ内ポート **8001** でリッスン（ホスト側では **8930** で公開）
