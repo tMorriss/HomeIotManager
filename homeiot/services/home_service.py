@@ -3,6 +3,7 @@
 在宅・外出イベントの処理、家電（Hue、IFTTT）制御、および DB（lasts, in_out）更新を行います。
 '''
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional
@@ -95,31 +96,45 @@ class HomeService:
         '''在宅検知時の処理'''
         # 最終在宅記録から OUT_THRESHOLD_SECONDS 以上経過していれば帰宅と判定する。
         # `out` は帰宅時刻を表し、帰宅判定は最終在宅記録時刻を基準にする。
-        is_returning = (
+        if (
             last_in is not None
             and (current_time - last_in).total_seconds() >= constants.OUT_THRESHOLD_SECONDS
-        )
-
-        if is_returning:
+        ):
             logger.info('Arrival detected. Executing arrival sequence.')
 
-            # 外出ログは直前の在宅時刻、帰宅ログは検知時刻で記録する。
-            await self.db.add_in_out_log(InOutValue.OUT, last_in)
-            await self.db.add_in_out_log(InOutValue.IN, current_time)
-            await self.db.set_last(LastName.OUT, current_time)
+            # 入退室ログは順序を保ち、それ以外の独立した処理を並行して実行する。
+            tasks = [
+                self._record_arrival_logs(last_in, current_time),
+                self.db.set_last(LastName.OUT, current_time),
+                self.db.set_last(LastName.IN, current_time),
+                self.ifttt_client.dock_roomy(),
+            ]
 
-            # ルンバの帰還
-            await self.ifttt_client.dock_roomy()
-
-            # 照明の自動点灯
             if self.is_lighting_time(current_time):
-                await self.hue_client.activate_scene(
-                    constants.HUE_ON_GROUP_ID, self.config.hue_on_scene_id
+                tasks.extend(
+                    [
+                        self.hue_client.activate_scene(
+                            constants.HUE_ON_GROUP_ID, self.config.hue_on_scene_id
+                        ),
+                        self.ifttt_client.turn_on_ceiling_light(),
+                    ]
                 )
-                await self.ifttt_client.turn_on_ceiling_light()
 
-        # 在宅中は毎回、最終在宅時刻を更新する。
-        await self.db.set_last(LastName.IN, current_time)
+            # 例外が起きても、開始した処理がすべて完了してから呼び出し元へ返す。
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, BaseException):
+                    raise result
+        else:
+            # 在宅中は毎回、最終在宅時刻を更新する。
+            await self.db.set_last(LastName.IN, current_time)
+
+    async def _record_arrival_logs(
+        self, last_in: datetime, current_time: datetime
+    ) -> None:
+        '''外出ログ、帰宅ログの順に記録します。'''
+        await self.db.add_in_out_log(InOutValue.OUT, last_in)
+        await self.db.add_in_out_log(InOutValue.IN, current_time)
 
     async def _handle_out_state(
         self,
