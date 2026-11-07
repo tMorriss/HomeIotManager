@@ -274,10 +274,10 @@ class TestSwitchBotClient:
             },
         }
         res = client.parse_webhook_payload(payload)
-        assert res['is_motion_detected'] is True
-        assert res['is_valid'] is True
-        assert res['device_type'] == 'WoPresence'
-        assert res['detection_state'] == 'DETECTED'
+        assert res.is_motion_detected is True
+        assert res.is_valid is True
+        assert res.device_type == 'WoPresence'
+        assert res.detection_state == 'DETECTED'
 
     def test_parse_webhook_payload_other_device(self, client):
         payload = {
@@ -289,27 +289,27 @@ class TestSwitchBotClient:
             },
         }
         res = client.parse_webhook_payload(payload)
-        assert res['is_motion_detected'] is False
+        assert res.is_motion_detected is False
 
     def test_parse_webhook_payload_invalid_structure(self, client):
         res = client.parse_webhook_payload('not a dict')
-        assert res['is_motion_detected'] is False
-        assert res['is_valid'] is False
+        assert res.is_motion_detected is False
+        assert res.is_valid is False
 
         res = client.parse_webhook_payload({
             'eventType': 'changeReport',
             'eventVersion': '1',
             'context': 'not a dict',
         })
-        assert res['is_motion_detected'] is False
-        assert res['is_valid'] is False
+        assert res.is_motion_detected is False
+        assert res.is_valid is False
 
         res = client.parse_webhook_payload({
             'eventType': 'changeReport',
             'eventVersion': '1',
             'context': {'deviceType': 'WoPresence'},
         })
-        assert res['is_valid'] is False
+        assert res.is_valid is False
 
     def test_parse_webhook_payload_rejects_unexpected_type_and_version(self, client):
         payload = {
@@ -321,5 +321,5 @@ class TestSwitchBotClient:
         wrong_type = {**payload, 'eventType': 'wrong'}
         wrong_version = {**payload, 'eventVersion': '1.0'}
 
-        assert client.parse_webhook_payload(wrong_type)['is_valid'] is False
-        assert client.parse_webhook_payload(wrong_version)['is_valid'] is False
+        assert client.parse_webhook_payload(wrong_type).is_valid is False
+        assert client.parse_webhook_payload(wrong_version).is_valid is False

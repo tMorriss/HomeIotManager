@@ -3,10 +3,22 @@
 SwitchBot Cloud から受信した Webhook ペイロードの検証・解析を行います。
 '''
 
+from dataclasses import dataclass
 import logging
-from typing import Any, Dict, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SwitchBotWebhookResult:
+    '''SwitchBot Webhook ペイロードの解析結果'''
+
+    is_valid: bool
+    is_motion_detected: bool
+    device_type: Optional[object] = None
+    detection_state: Optional[object] = None
+    error: Optional[str] = None
 
 
 class SwitchBotClient:
@@ -21,7 +33,7 @@ class SwitchBotClient:
             return False
         return token.strip() == self.webhook_token.strip()
 
-    def parse_webhook_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def parse_webhook_payload(self, payload: object) -> SwitchBotWebhookResult:
         '''SwitchBot 人感センサー (WoPresence) などの Webhook ペイロードを解析します。
 
         例:
@@ -36,61 +48,52 @@ class SwitchBotClient:
         }
         '''
         if not isinstance(payload, dict):
-            return {
-                'is_valid': False,
-                'is_motion_detected': False,
-                'device_type': None,
-                'detection_state': None,
-                'error': 'invalid payload',
-            }
+            return SwitchBotWebhookResult(
+                is_valid=False,
+                is_motion_detected=False,
+                error='invalid payload',
+            )
 
         if payload.get('eventType') != 'changeReport':
-            return {
-                'is_valid': False,
-                'is_motion_detected': False,
-                'device_type': None,
-                'detection_state': None,
-                'error': 'invalid eventType',
-            }
+            return SwitchBotWebhookResult(
+                is_valid=False,
+                is_motion_detected=False,
+                error='invalid eventType',
+            )
 
         if payload.get('eventVersion') != '1':
-            return {
-                'is_valid': False,
-                'is_motion_detected': False,
-                'device_type': None,
-                'detection_state': None,
-                'error': 'invalid eventVersion',
-            }
+            return SwitchBotWebhookResult(
+                is_valid=False,
+                is_motion_detected=False,
+                error='invalid eventVersion',
+            )
 
         context = payload.get('context')
         if not isinstance(context, dict):
-            return {
-                'is_valid': False,
-                'is_motion_detected': False,
-                'device_type': None,
-                'detection_state': None,
-                'error': 'missing context',
-            }
+            return SwitchBotWebhookResult(
+                is_valid=False,
+                is_motion_detected=False,
+                error='missing context',
+            )
 
         device_type = context.get('deviceType')
         detection_state = context.get('detectionState')
         if device_type is None or detection_state is None:
-            return {
-                'is_valid': False,
-                'is_motion_detected': False,
-                'device_type': device_type,
-                'detection_state': detection_state,
-                'error': 'missing context fields',
-            }
+            return SwitchBotWebhookResult(
+                is_valid=False,
+                is_motion_detected=False,
+                device_type=device_type,
+                detection_state=detection_state,
+                error='missing context fields',
+            )
 
         is_motion_detected = (
             device_type == 'WoPresence' and detection_state == 'DETECTED'
         )
 
-        return {
-            'is_valid': True,
-            'is_motion_detected': is_motion_detected,
-            'device_type': device_type,
-            'detection_state': detection_state,
-            'error': None,
-        }
+        return SwitchBotWebhookResult(
+            is_valid=True,
+            is_motion_detected=is_motion_detected,
+            device_type=device_type,
+            detection_state=detection_state,
+        )

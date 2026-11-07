@@ -32,15 +32,14 @@ async def handle_switchbot_webhook(request: Request, token: Optional[str] = None
         payload = {}
 
     parsed = switchbot_client.parse_webhook_payload(payload)
-    if not parsed.get('is_valid', False):
-        logger.warning('Invalid SwitchBot webhook payload: %s', parsed.get('error'))
+    if not parsed.is_valid:
+        logger.warning('Invalid SwitchBot webhook payload: %s', parsed.error)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Invalid request',
         )
 
-    is_motion_detected = parsed.get('is_motion_detected', False)
-    if not is_motion_detected:
+    if not parsed.is_motion_detected:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     try:
