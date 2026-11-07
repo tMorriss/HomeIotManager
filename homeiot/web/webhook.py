@@ -44,7 +44,7 @@ async def handle_switchbot_webhook(request: Request, token: Optional[str] = None
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     try:
-        # 旧実装同様、スマホが在宅なら人感センサーでは帰宅処理を起動しない。
+        # スマホPingで在宅を確認できる場合、人感センサーによる帰宅処理は不要。
         if not await home_service.is_present():
             await home_service.handle_presence_check(motion_detected=True)
     except Exception as exc:

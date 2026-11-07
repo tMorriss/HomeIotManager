@@ -93,8 +93,8 @@ class HomeService:
         current_time: datetime,
     ) -> None:
         '''在宅検知時の処理'''
-        # 旧実装は最終在宅記録からの不在時間で帰宅を確定していた。
-        # `out` は帰宅時刻なので、古い `out` の経過時間だけでは帰宅と判定しない。
+        # 最終在宅記録から OUT_THRESHOLD_SECONDS 以上経過していれば帰宅と判定する。
+        # `out` は帰宅時刻を表し、帰宅判定は最終在宅記録時刻を基準にする。
         is_returning = (
             last_in is not None
             and (current_time - last_in).total_seconds() >= constants.OUT_THRESHOLD_SECONDS
@@ -103,7 +103,7 @@ class HomeService:
         if is_returning:
             logger.info('Arrival detected. Executing arrival sequence.')
 
-            # 旧実装と同じく外出時刻は直前の在宅記録時刻、帰宅時刻は現在時刻で記録する。
+            # 外出ログは直前の在宅時刻、帰宅ログは検知時刻で記録する。
             await self.db.add_in_out_log(InOutValue.OUT, last_in)
             await self.db.set_last(LastName.OUT, current_time)
 
@@ -131,12 +131,12 @@ class HomeService:
         current_time: datetime,
     ) -> None:
         '''不在検知時の処理'''
-        # 旧実装では `last_in` が未登録の場合、今回時刻を基準にして外出を確定しなかった。
+        # 在宅記録がない場合は今回時刻を基準にし、外出を確定しない。
         effective_last_in = last_in or current_time
         time_since_in = (current_time - effective_last_in).total_seconds()
 
         # 帰宅直後の猶予中はPingが途絶えても在宅時刻を延長する。
-        # `out` が未登録の場合も旧実装の初期値は猶予時間そのものだった。
+        # 帰宅記録がない場合は猶予時間内として扱う。
         time_since_out = (
             (current_time - last_out).total_seconds()
             if last_out is not None
@@ -150,7 +150,7 @@ class HomeService:
         if time_since_in >= constants.OUT_THRESHOLD_SECONDS:
             logger.info('Departure confirmed. Executing departure sequence.')
 
-            # 旧実装では最後に消灯を観測した時刻からの経過時間で消灯を判定する。
+            # 最後に消灯を観測した時刻からの経過時間で消灯を判定する。
             await self._check_and_turn_off_lights(last_hue_off, current_time)
 
             # ルンバ自動清掃開始チェック
@@ -171,7 +171,7 @@ class HomeService:
         await self.ifttt_client.turn_off_ceiling_light()
 
     async def _record_hue_off_if_lights_are_off(self, current_time: datetime) -> None:
-        '''旧実装同様、グループ2が消灯状態なら `hue_off` を毎回記録します。'''
+        '''グループ2が消灯状態の場合、消灯確認時刻 `hue_off` を更新します。'''
         hue_is_on = await self.hue_client.is_any_on(constants.HUE_ON_GROUP_ID)
         if not hue_is_on:
             await self.db.set_last(LastName.HUE_OFF, current_time)
@@ -196,5 +196,5 @@ class HomeService:
 
         logger.info('Starting Roomy cleaning sequence.')
         await self.ifttt_client.start_roomy()
-        # 旧実装は呼び出し結果にかかわらず稼働時刻を記録していた。
+        # 起動要求を送信した時刻を記録し、同じ外出中の重複起動を防ぐ。
         await self.db.set_last(LastName.ROOMY, current_time)
