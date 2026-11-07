@@ -1,11 +1,16 @@
 FROM python:3.12-slim
 
+ENV TZ=Asia/Tokyo
+
 WORKDIR /app
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         iputils-ping \
-        curl && \
+        curl \
+        tzdata && \
+    ln -snf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
+    echo 'Asia/Tokyo' > /etc/timezone && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements/requirements.txt /app/requirements/requirements.txt
