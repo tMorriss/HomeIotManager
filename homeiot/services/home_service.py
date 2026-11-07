@@ -163,11 +163,15 @@ class HomeService:
         if time_since_in >= constants.OUT_THRESHOLD_SECONDS:
             logger.info('Departure confirmed. Executing departure sequence.')
 
-            # 最後に消灯を観測した時刻からの経過時間で消灯を判定する。
-            await self._check_and_turn_off_lights(last_hue_off, current_time)
-
-            # ルンバ自動清掃開始チェック
-            await self._check_and_start_roomy(effective_last_in, current_time)
+            # 照明とルンバの処理は独立しているため、両方の完了を待ちながら並行実行する。
+            results = await asyncio.gather(
+                self._check_and_turn_off_lights(last_hue_off, current_time),
+                self._check_and_start_roomy(effective_last_in, current_time),
+                return_exceptions=True,
+            )
+            for result in results:
+                if isinstance(result, BaseException):
+                    raise result
 
     async def _check_and_turn_off_lights(
         self, last_hue_off: Optional[datetime], current_time: datetime
