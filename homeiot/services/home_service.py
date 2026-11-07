@@ -105,6 +105,7 @@ class HomeService:
 
             # 外出ログは直前の在宅時刻、帰宅ログは検知時刻で記録する。
             await self.db.add_in_out_log(InOutValue.OUT, last_in)
+            await self.db.add_in_out_log(InOutValue.IN, current_time)
             await self.db.set_last(LastName.OUT, current_time)
 
             # ルンバの帰還
@@ -116,9 +117,6 @@ class HomeService:
                     constants.HUE_ON_GROUP_ID, self.config.hue_on_scene_id
                 )
                 await self.ifttt_client.turn_on_ceiling_light()
-
-            # 帰宅ログ記録
-            await self.db.add_in_out_log(InOutValue.IN, current_time)
 
         # 在宅中は毎回、最終在宅時刻を更新する。
         await self.db.set_last(LastName.IN, current_time)
