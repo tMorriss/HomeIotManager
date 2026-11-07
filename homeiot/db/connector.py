@@ -61,7 +61,7 @@ class DBConnector:
         pool = await self.get_pool()
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                await cursor.execute(query, (name,))
+                await cursor.execute(query, (name.value,))
                 row = await cursor.fetchone()
                 return row[0] if row else None
 
@@ -77,7 +77,7 @@ class DBConnector:
         pool = await self.get_pool()
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                await cursor.execute(query, (name, event_time))
+                await cursor.execute(query, (name.value, event_time))
 
     async def get_roomy_lock(self) -> Optional[date]:
         '''roomy_lock テーブルから最新のルンバ稼働抑制日を取得します。'''
@@ -90,8 +90,8 @@ class DBConnector:
                 return row[0] if row else None
 
     async def set_roomy_lock(self, lock_date: date) -> None:
-        '''roomy_lock テーブルにルンバ稼働抑制日を登録または更新します。'''
-        query = 'INSERT INTO roomy_lock (date) VALUES (%s) ON DUPLICATE KEY UPDATE date = VALUES(date)'
+        '''roomy_lock テーブルにルンバ稼働抑制日を追加します。'''
+        query = 'INSERT INTO roomy_lock (date) VALUES (%s)'
         pool = await self.get_pool()
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
@@ -115,4 +115,4 @@ class DBConnector:
         pool = await self.get_pool()
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
-                await cursor.execute(query, (event_time, value))
+                await cursor.execute(query, (event_time, value.value))

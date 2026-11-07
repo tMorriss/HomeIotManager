@@ -37,7 +37,7 @@ flowchart TD
         MySQL[(既存 MySQL サーバー\nin_out / lasts / roomy_lock)]
     end
 
-    subgraph LAN["宅内ローカルネットワーク (192.168.111.0/24)"]
+    subgraph LAN["宅内ローカルネットワーク"]
         Smartphones["スマートフォン\n(ICMP Ping 応答)"]
         HueBridge["Philips Hue ブリッジ\n(ローカル REST API)"]
     end
@@ -92,34 +92,48 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 ### テーブル定義
 
 #### 1. `lasts` テーブル
-各種イベントの最終日時を保持します。
+各種イベントの最終日時を保持します。テーブルが空、または対象キーが未登録の場合、アプリケーションの取得結果は `None` です。
 
 | カラム名 | 型 | 説明 |
 |---|---|---|
-| `name` | `VARCHAR` (PK) | イベント種別キー (`in`, `out`, `roomy`, `hue_off`) |
-| `time` | `DATETIME` | 最終記録日時 |
+| `name` | `VARCHAR(20) NOT NULL` (PK) | イベント種別キー (`in`, `out`, `roomy`, `hue_off`) |
+| `time` | `DATETIME NOT NULL` | 最終記録日時 |
 
-`name` は PRIMARY KEY または UNIQUE 制約で一意にしてください。保存には MariaDB の `INSERT ... ON DUPLICATE KEY UPDATE` を使い、キーが未登録なら INSERT、登録済みなら `time` を UPDATE します。この処理は1文で原子的に実行されます。
+実環境の定義は `name` が PRIMARY KEY です。保存には `INSERT ... ON DUPLICATE KEY UPDATE` を使い、キーが未登録なら INSERT、登録済みなら `time` を UPDATE します。この処理は1文で原子的に実行されます。
 
 - `in`: 最終在宅検知時刻
-- `out`: 最終外出確定（または帰宅開始）時刻
+- `out`: 最終帰宅処理時刻（帰宅判定時に更新。外出確定時には更新しない）
 - `roomy`: 最終ルンバ稼働日/時刻
 - `hue_off`: 最終 Hue 消灯時刻
 
 #### 2. `roomy_lock` テーブル
-ルンバの稼働を抑制する日付を保持します。当日がこの日付以前の場合はルンバを自動起動しません（※本テーブルは常に最新の 1 行のみが保持・設定される想定です）。
+ルンバの稼働を抑制する日付を保持します。抑制日が当日以降の場合はルンバを自動起動しません。テーブルが空の場合、抑制日はありません。
 
 | カラム名 | 型 | 説明 |
 |---|---|---|
-| `date` | `DATE` | ルンバ稼働抑制指定日 |
+| `date` | `DATE NOT NULL` | ルンバ稼働抑制指定日 |
+
+実環境では `date` に PRIMARY KEY / UNIQUE 制約がありません。そのため `set_roomy_lock()` は呼び出すたびに行を追加し、`get_roomy_lock()` はその中で最も新しい日付を取得します。`delete_roomy_lock()` は全行を削除します。
 
 #### 3. `in_out` テーブル
-在宅・外出イベントの履歴ログテーブルです。
+在宅・外出イベントの履歴ログテーブルです。`datetime` と `value` は必須です。
 
 | カラム名 | 型 | 説明 |
 |---|---|---|
-| `datetime` | `DATETIME` | イベント発生日時 |
-| `value` | `INT` | イベント種別 (`0`: 外出, `1`: 帰宅) |
+| `id` | `INT(11) NOT NULL` (PK, AUTO_INCREMENT) | 行 ID |
+| `datetime` | `DATETIME NOT NULL` | イベント発生日時 |
+| `value` | `TINYINT(1) NOT NULL` | イベント種別 (`0`: 外出, `1`: 帰宅) |
+
+アプリケーションは `id` を指定せずに INSERT し、DB の AUTO_INCREMENT に採番させます。入退室ログ追加処理は `datetime` と `value` の両方に値を渡します。
+
+### 入退室判定とログ記録
+
+- Worker は10秒間隔で判定します。スマートフォンのいずれかに Ping 応答があれば在宅、人感センサーの有効な `DETECTED` イベントも在宅検知として扱います。
+- 在宅検知時、`lasts.in` から5分以上経過していれば帰宅と判定します。このとき `in_out` に外出 (`value=0`, 前回 `lasts.in` の時刻) と帰宅 (`value=1`, 現在時刻) を順に記録し、`lasts.in` / `lasts.out` を現在時刻に更新します。
+- 不在時は、`lasts.in` から5分以上経過して外出後の制御対象になります。外出確定時点では `in_out` に行を追加しません。
+- `lasts.out` から3分以内の不在は帰宅直後の猶予として `lasts.in` を延長します。`lasts.out` が未登録の場合は帰宅直後である根拠がないため、この猶予を適用しません。
+- `lasts` の各更新と `in_out` の複数 INSERT は、現状では単一トランザクションにまとめていません。DBエラー時には一部だけ保存される可能性があります。
+- Worker は前回の判定完了を待たず10秒ごとに次の判定を開始し、Webhook も別プロセスから同じ状態を更新します。両者が同時に帰宅判定すると重複処理になる可能性があります。
 
 ---
 
@@ -161,7 +175,7 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 | `DB_USER` | **必須** | MySQL 接続ユーザー名 |
 | `DB_PASS` | **必須** | MySQL 接続パスワード |
 | `DB_NAME` | **必須** | データベース名 |
-| `TARGET_PHONE_IPS` | **必須** | 在宅判定対象スマホのIPアドレス（カンマ区切り。例: `192.168.111.51,192.168.111.52`） |
+| `TARGET_PHONE_IPS` | **必須** | 在宅判定対象スマホのIPアドレス（カンマ区切り。例: `<phone-ip-1>,<phone-ip-2>`） |
 | `HUE_BRIDGE_IP` | **必須** | Philips Hue ブリッジの IP アドレス |
 | `HUE_API_USER` | **必須** | Philips Hue の API ユーザーキー（ハッシュ文字列） |
 | `HUE_ON_SCENE_ID` | **必須** | 帰宅時に呼び出すシーン ID |

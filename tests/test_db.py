@@ -85,7 +85,7 @@ class TestDBConnector:
         assert res == now
         mock_cursor.execute.assert_called_once()
         assert 'SELECT time FROM lasts WHERE name = %s' in mock_cursor.execute.call_args[0][0]
-        assert mock_cursor.execute.call_args[0][1] == (LastName.IN,)
+        assert mock_cursor.execute.call_args[0][1] == (LastName.IN.value,)
 
     @pytest.mark.asyncio
     async def test_get_last_not_found(self, db_connector, mocker):
@@ -110,7 +110,7 @@ class TestDBConnector:
 
         await db_connector.set_last(LastName.IN, now)
         mock_cursor.execute.assert_called_once()
-        assert mock_cursor.execute.call_args[0][1] == (LastName.IN, now)
+        assert mock_cursor.execute.call_args[0][1] == (LastName.IN.value, now)
 
     @pytest.mark.asyncio
     async def test_set_last_default_now(self, db_connector, mocker):
@@ -122,7 +122,7 @@ class TestDBConnector:
 
         await db_connector.set_last(LastName.IN)
         mock_cursor.execute.assert_called_once()
-        assert mock_cursor.execute.call_args[0][1][0] == LastName.IN
+        assert mock_cursor.execute.call_args[0][1][0] == LastName.IN.value
         assert isinstance(mock_cursor.execute.call_args[0][1][1], datetime)
 
     @pytest.mark.asyncio
@@ -173,7 +173,7 @@ class TestDBConnector:
 
         await db_connector.add_in_out_log(InOutValue.IN, now)
         mock_cursor.execute.assert_called_once()
-        assert mock_cursor.execute.call_args[0][1] == (now, InOutValue.IN)
+        assert mock_cursor.execute.call_args[0][1] == (now, InOutValue.IN.value)
 
     @pytest.mark.asyncio
     async def test_add_in_out_log_default_now(self, db_connector, mocker):
@@ -186,4 +186,4 @@ class TestDBConnector:
         await db_connector.add_in_out_log(InOutValue.IN)
         mock_cursor.execute.assert_called_once()
         assert isinstance(mock_cursor.execute.call_args[0][1][0], datetime)
-        assert mock_cursor.execute.call_args[0][1][1] == InOutValue.IN
+        assert mock_cursor.execute.call_args[0][1][1] == InOutValue.IN.value
