@@ -97,6 +97,8 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 | `name` | `VARCHAR` (PK) | イベント種別キー (`in`, `out`, `roomy`, `hue_off`) |
 | `time` | `DATETIME` | 最終記録日時 |
 
+`name` は PRIMARY KEY または UNIQUE 制約で一意にしてください。保存には MariaDB の `INSERT ... ON DUPLICATE KEY UPDATE` を使い、キーが未登録なら INSERT、登録済みなら `time` を UPDATE します。この処理は1文で原子的に実行されます。
+
 - `in`: 最終在宅検知時刻
 - `out`: 最終外出確定（または帰宅開始）時刻
 - `roomy`: 最終ルンバ稼働日/時刻
