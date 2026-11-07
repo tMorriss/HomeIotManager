@@ -3,8 +3,8 @@
 SwitchBot Cloud から受信した Webhook ペイロードの検証・解析を行います。
 '''
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import Optional
 
 logger = logging.getLogger(__name__)
