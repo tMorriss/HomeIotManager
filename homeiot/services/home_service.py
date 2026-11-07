@@ -144,18 +144,21 @@ class HomeService:
         current_time: datetime,
     ) -> None:
         '''不在検知時の処理'''
-        # 在宅記録がない場合は今回時刻を基準にし、外出を確定しない。
-        effective_last_in = last_in or current_time
+        # 起動直後など在宅記録がない場合は、今回時刻を基準として記録する。
+        if last_in is None:
+            await self.db.set_last(LastName.IN, current_time)
+            return
+
+        effective_last_in = last_in
         time_since_in = (current_time - effective_last_in).total_seconds()
 
         # 帰宅直後の猶予中はPingが途絶えても在宅時刻を延長する。
-        # 帰宅記録がない場合は猶予時間内として扱う。
-        time_since_out = (
-            (current_time - last_out).total_seconds()
-            if last_out is not None
-            else constants.LAST_IN_THRESHOLD_SECONDS
-        )
-        if time_since_out <= constants.LAST_IN_THRESHOLD_SECONDS:
+        # `last_out` が未記録の場合は、帰宅直後である根拠がないため猶予を適用しない。
+        if (
+            last_out is not None
+            and (current_time - last_out).total_seconds()
+            <= constants.LAST_IN_THRESHOLD_SECONDS
+        ):
             await self.db.set_last(LastName.IN, current_time)
             return
 
@@ -190,7 +193,7 @@ class HomeService:
     async def _record_hue_off_if_lights_are_off(self, current_time: datetime) -> None:
         '''グループ2が消灯状態の場合、消灯確認時刻 `hue_off` を更新します。'''
         hue_is_on = await self.hue_client.is_any_on(constants.HUE_ON_GROUP_ID)
-        if not hue_is_on:
+        if hue_is_on is False:
             await self.db.set_last(LastName.HUE_OFF, current_time)
 
     async def _check_and_start_roomy(
