@@ -163,7 +163,7 @@ class TestHomeService:
         service, _, mock_db, mock_hue_client, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=True)
         now = datetime(2026, 9, 20, 19, 0, 0)
-        last_in = now - timedelta(seconds=constants.ARRIVAL_THRESHOLD_SECONDS)
+        last_in = now - timedelta(seconds=constants.OUT_THRESHOLD_SECONDS)
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
@@ -217,7 +217,7 @@ class TestHomeService:
         service, _, mock_db, _, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=True)
         now = datetime(2026, 9, 20, 12, 0, 0)
-        last_in = now - timedelta(seconds=constants.ARRIVAL_THRESHOLD_SECONDS)
+        last_in = now - timedelta(seconds=constants.OUT_THRESHOLD_SECONDS)
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
@@ -243,7 +243,7 @@ class TestHomeService:
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
-                return now - timedelta(seconds=constants.ARRIVAL_THRESHOLD_SECONDS - 1)
+                return now - timedelta(seconds=constants.OUT_THRESHOLD_SECONDS - 1)
             return None
 
         mock_db.get_last.side_effect = get_last_side_effect

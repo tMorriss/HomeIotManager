@@ -150,7 +150,7 @@ CREATE TABLE presence_sensor (
 
 - Worker は10秒間隔で判定します。スマートフォンのいずれかに Ping 応答があれば在宅として扱います。`WoPresence` の有効な `DETECTED` は即時の在宅検知として扱います。
 - 在室確認では `presence_sensor` の最新行（`datetime` 降順、同時刻は `id` 降順）も参照します。最新値が `DETECTED` なら、スマートフォンの Ping 応答がなくても在宅として扱います。最新値が `NOT_DETECTED` または履歴なしの場合は、従来どおりスマートフォンの Ping 結果で判定します。
-- 在宅検知時、`lasts.in` から5分以上経過していれば帰宅と判定します。このとき `in_out` に外出 (`value=0`, 前回 `lasts.in` の時刻) と帰宅 (`value=1`, 現在時刻) を順に記録し、`lasts.in` / `lasts.out` を現在時刻に更新します。
+- 在宅検知時、`lasts.in` から60秒以上経過していれば帰宅と判定します。このとき `in_out` に外出 (`value=0`, 前回 `lasts.in` の時刻) と帰宅 (`value=1`, 現在時刻) を順に記録し、`lasts.in` / `lasts.out` を現在時刻に更新します。
 - 不在が60秒以上続くと外出と判定して、外出後の制御対象になります。Presence Sensor Pro の状態を在室判定に利用します。外出確定時点では `in_out` に行を追加しません。
 - `lasts.out` から3分以内の不在は帰宅直後の猶予として `lasts.in` を延長します。`lasts.out` が未登録の場合は帰宅直後である根拠がないため、この猶予を適用しません。
 - `lasts` の各更新と `in_out` の複数 INSERT は、現状では単一トランザクションにまとめていません。DBエラー時には一部だけ保存される可能性があります。
@@ -211,8 +211,7 @@ CREATE TABLE presence_sensor (
 | 定数名 | 設定値 | 説明 |
 |---|---|---|
 | `CHECK_INTERVAL_SECONDS` | `10` | Worker 常駐プロセスの監視インターバル（10秒） |
-| `OUT_THRESHOLD_SECONDS` | `60` | 外出確定までのしきい値（60秒） |
-| `ARRIVAL_THRESHOLD_SECONDS` | `300` | 帰宅確定までのしきい値（5分 / 300秒） |
+| `OUT_THRESHOLD_SECONDS` | `60` | 外出・帰宅確定までのしきい値（60秒） |
 | `HUE_THRESHOLD_SECONDS` | `600` | ライト消灯判定のしきい値（10分 / 600秒） |
 | `LAST_IN_THRESHOLD_SECONDS` | `180` | 帰宅直後の在宅維持判定しきい値（3分 / 180秒） |
 | `HUE_ON_BEGIN_HOUR` | `17` | 自動点灯を開始する時刻（17時） |
