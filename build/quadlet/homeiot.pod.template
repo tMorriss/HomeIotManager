@@ -3,7 +3,7 @@ Description=HomeIotManager Pod
 
 [Pod]
 PodName=homeiot-pod
-PublishPort=8082:8001
+PublishPort=8082:8080
 
 [Install]
 WantedBy=default.target

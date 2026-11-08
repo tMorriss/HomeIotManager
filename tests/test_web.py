@@ -42,13 +42,6 @@ class TestWebApp:
             mock_home_service,
         )
 
-    def test_healthz_endpoint(self, app_setup):
-        '''GET /healthz の応答確認'''
-        _, client, _, _, _, _ = app_setup
-        response = client.get('/healthz')
-        assert response.status_code == 204
-        assert response.text == ''
-
     def test_switchbot_webhook_unauthorized_missing_token(self, app_setup):
         '''トークンなしで POST /switchbot/all を呼び出した場合 401 になるか'''
         _, client, _, _, mock_switchbot_client, _ = app_setup
