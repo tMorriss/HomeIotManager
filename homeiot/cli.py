@@ -5,6 +5,7 @@
 
 import argparse
 import asyncio
+import logging
 import sys
 from typing import Optional, Sequence
 
@@ -29,6 +30,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     subparsers.add_parser('web', help='Start FastAPI web server')
 
     args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO)
 
     if args.subcommand == 'worker':
         worker = BatchWorker()
