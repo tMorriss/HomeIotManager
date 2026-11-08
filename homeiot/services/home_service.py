@@ -99,11 +99,11 @@ class HomeService:
         current_time: datetime,
     ) -> None:
         '''在宅検知時の処理'''
-        # 最終在宅記録から OUT_THRESHOLD_SECONDS 以上経過していれば帰宅と判定する。
+        # 最終在宅記録から ARRIVAL_THRESHOLD_SECONDS 以上経過していれば帰宅と判定する。
         # `out` は帰宅時刻を表し、帰宅判定は最終在宅記録時刻を基準にする。
         if (
             last_in is not None
-            and (current_time - last_in).total_seconds() >= constants.OUT_THRESHOLD_SECONDS
+            and (current_time - last_in).total_seconds() >= constants.ARRIVAL_THRESHOLD_SECONDS
         ):
             logger.info('Arrival detected. Executing arrival sequence.')
 

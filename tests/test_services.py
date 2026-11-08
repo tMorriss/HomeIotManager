@@ -163,7 +163,7 @@ class TestHomeService:
         service, _, mock_db, mock_hue_client, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=True)
         now = datetime(2026, 9, 20, 19, 0, 0)
-        last_in = now - timedelta(minutes=10)
+        last_in = now - timedelta(seconds=constants.ARRIVAL_THRESHOLD_SECONDS)
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
@@ -217,7 +217,7 @@ class TestHomeService:
         service, _, mock_db, _, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=True)
         now = datetime(2026, 9, 20, 12, 0, 0)
-        last_in = now - timedelta(minutes=10)
+        last_in = now - timedelta(seconds=constants.ARRIVAL_THRESHOLD_SECONDS)
 
         async def get_last_side_effect(name):
             if name == LastName.IN:
@@ -234,6 +234,24 @@ class TestHomeService:
             mocker.call(InOutValue.OUT, last_in),
             mocker.call(InOutValue.IN, now),
         ]
+
+    @pytest.mark.asyncio
+    async def test_handle_presence_check_not_arriving_before_threshold(self, home_service_setup, mocker):
+        service, _, mock_db, _, mock_ifttt_client = home_service_setup
+        mocker.patch.object(HomeService, 'is_present', return_value=True)
+        now = datetime(2026, 9, 20, 12, 0, 0)
+
+        async def get_last_side_effect(name):
+            if name == LastName.IN:
+                return now - timedelta(seconds=constants.ARRIVAL_THRESHOLD_SECONDS - 1)
+            return None
+
+        mock_db.get_last.side_effect = get_last_side_effect
+
+        await service.handle_presence_check(current_time=now)
+
+        mock_db.add_in_out_log.assert_not_called()
+        mock_ifttt_client.dock_roomy.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_present_continuously_does_not_repeat_arrival(self, home_service_setup, mocker):
@@ -304,6 +322,33 @@ class TestHomeService:
         # Roomy start
         mock_ifttt_client.start_roomy.assert_called_once()
         mock_db.set_last.assert_any_call(LastName.ROOMY, now)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(('elapsed_seconds', 'confirmed'), [(59, False), (60, True)])
+    async def test_departure_threshold_boundary(self, home_service_setup, mocker, elapsed_seconds, confirmed):
+        service, _, mock_db, mock_hue_client, mock_ifttt_client = home_service_setup
+        mocker.patch.object(HomeService, 'is_present', return_value=False)
+        now = datetime(2026, 9, 20, 14, 0, 0)
+        last_in = now - timedelta(seconds=elapsed_seconds)
+        last_out = now - timedelta(hours=2)
+        last_hue_off = now - timedelta(seconds=constants.HUE_THRESHOLD_SECONDS + 1)
+
+        async def get_last_side_effect(name):
+            if name == LastName.IN:
+                return last_in
+            if name == LastName.OUT:
+                return last_out
+            if name == LastName.HUE_OFF:
+                return last_hue_off
+            return None
+
+        mock_db.get_last.side_effect = get_last_side_effect
+        mock_hue_client.is_any_on.return_value = True
+
+        await service.handle_presence_check(current_time=now)
+
+        assert mock_hue_client.turn_off_group.called is confirmed
+        assert mock_ifttt_client.start_roomy.called is confirmed
 
     @pytest.mark.asyncio
     async def test_handle_presence_check_out_already_recorded_out(self, home_service_setup, mocker):
