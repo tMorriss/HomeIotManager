@@ -70,7 +70,7 @@ tox
 
 ## 3. デプロイ
 
-HomeIotManager は Podman Quadlet とユーザー systemd サービスで動作します。Jenkins ジョブは、Podman を運用する Linux ユーザー自身として `build/jenkins.sh` を実行してください。スクリプトは実行ユーザーの rootless Podman と `$HOME/.config/containers/systemd/homeiot/` を使って Quadlet ユニットを配置し、`homeiot-pod.service` と各コンテナを起動します。Web と Worker は `homeiot-pod` 内の別コンテナとして起動し、ホストのポート `8082` を Web のポート `8001` に転送します。
+HomeIotManager は Podman Quadlet とユーザー systemd サービスで動作します。Jenkins ジョブは、Podman を運用する Linux ユーザー自身として `build/jenkins.sh` を実行してください。スクリプトは実行ユーザーの rootless Podman と `$HOME/.config/containers/systemd/homeiot/` を使って Quadlet ユニットを配置し、`homeiot-pod.service` と各コンテナを起動します。Web と Worker は `homeiot-pod` 内の別コンテナとして起動し、ホストのポート `8082` を Web コンテナ内のポート `8080` に転送します。
 
 設定値は Podman Secrets として管理され、Quadlet 経由で各コンテナの環境変数に渡されます。ホスト再起動後の自動起動には、管理者が実行ユーザーの linger を事前に有効にしておく必要があります（デプロイスクリプトでは変更しません）。Jenkins に以下の環境変数を登録してください。
 

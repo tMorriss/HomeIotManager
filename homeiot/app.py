@@ -14,7 +14,6 @@ from homeiot.clients.switchbot import SwitchBotClient
 from homeiot.config import Config
 from homeiot.db.connector import DBConnector
 from homeiot.services.home_service import HomeService
-from homeiot.web.health import health_router
 from homeiot.web.webhook import webhook_router
 
 logger = logging.getLogger(__name__)
@@ -27,7 +26,12 @@ def create_app(
     home_service: Optional[HomeService] = None,
 ) -> FastAPI:
     '''FastAPI アプリケーションインスタンスを生成・構築します。'''
-    app = FastAPI(title='HomeIotManager')
+    app = FastAPI(
+        title='HomeIotManager',
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
 
     if config is None:
         config = Config()
@@ -53,7 +57,6 @@ def create_app(
     app.state.switchbot_client = switchbot_client
     app.state.home_service = home_service
 
-    app.include_router(health_router)
     app.include_router(webhook_router)
 
     return app

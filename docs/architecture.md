@@ -30,7 +30,7 @@ flowchart TD
         
         subgraph Pod["Podman Quadlet Pod: homeiot-pod"]
             direction TB
-            WebContainer["Web コンテナ\n(FastAPI)\nListen: 0.0.0.0:8001"]
+            WebContainer["Web コンテナ\n(FastAPI)\nListen: 0.0.0.0:8080"]
             WorkerContainer["Worker コンテナ\n(常駐バッチループ)\n10秒間隔で監視"]
         end
 
@@ -64,16 +64,16 @@ flowchart TD
 
 ## 3. コンテナ設計 (Podman Quadlet)
 
-MoneyBook と同様に、Quadlet の `.pod` と `.container` ユニット（`build/quadlet/`）で1つの Pod `homeiot-pod` と2つのコンテナを管理します。Jenkins ジョブはPodmanを運用するLinuxユーザー自身として実行し、そのユーザーのrootless Podman・ユーザーsystemdを使用します。ユニットは実行ユーザーの `$HOME/.config/containers/systemd/homeiot/` に配置します。Pod のポート転送はホスト `8082` からコンテナ `8001` です。
+MoneyBook と同様に、Quadlet の `.pod` と `.container` ユニット（`build/quadlet/`）で1つの Pod `homeiot-pod` と2つのコンテナを管理します。Jenkins ジョブはPodmanを運用するLinuxユーザー自身として実行し、そのユーザーのrootless Podman・ユーザーsystemdを使用します。ユニットは実行ユーザーの `$HOME/.config/containers/systemd/homeiot/` に配置します。Pod のポート転送はホスト `8082` からコンテナ `8080` です。
 
 - **タイムゾーン**: Docker イメージに `tzdata` を含め、`TZ=Asia/Tokyo` と `/etc/localtime` を設定します。Web / Worker の `datetime.now()` および `DATETIME` 保存値は日本時間を基準にします。
 
 - **Web コンテナ (`homeiot-web`)**:
   - Uvicorn + FastAPI
-  - コンテナ内ポート **8001** でリッスン（ホスト側では **8082** で公開）
+  - コンテナ内ポート **8080** でリッスン（ホスト側では **8082** で公開）
   - エンドポイント:
     - `POST /switchbot/all`: SwitchBot 人感センサー（`WoPresence`）の検知 Webhook 受信（トークン検証付き）
-    - `GET /healthz`: ヘルスチェック用エンドポイント
+  - FastAPI の自動生成ドキュメント (`/docs`, `/redoc`) と OpenAPI スキーマ (`/openapi.json`) は無効化します。
   ※ 保守コスト削減のため、ルンバ稼働抑制日（`roomy_lock`）の Web UI 設定画面（`/settings`）は非搭載とし、DB テーブルおよびバックエンド判定ロジックのみを保持します。
 - **Worker コンテナ (`homeiot-worker`)**:
   - 常駐 Python プロセス
@@ -219,7 +219,7 @@ CREATE TABLE presence_sensor (
 | `ROOMY_SLEEP_END_HOUR` | `6` | ルンバ稼働を禁止する早朝終了時刻（6時） |
 | `HUE_ON_GROUP_ID` | `'2'` | 帰宅時点灯対象の Hue グループ ID |
 | `HUE_OFF_GROUP_ID` | `'3'` | 外出時消灯対象の Hue グループ ID |
-| `WEB_PORT` | `8001` | Web コンテナ内のリッスンポート（ホスト側は `8082`） |
+| `WEB_PORT` | `8080` | Web コンテナ内のリッスンポート（ホスト側は `8082`） |
 | `JAPAN_TIMEZONE` | UTC+09:00 | SwitchBot `timeOfSample` を日本時間の `DATETIME` に変換するタイムゾーン |
 
 ---
