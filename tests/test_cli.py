@@ -36,7 +36,7 @@ class TestCLI:
             'homeiot.app:create_app',
             factory=True,
             host='0.0.0.0',
-            port=8001,
+            port=cli.constants.WEB_PORT,
         )
 
     def test_main_invalid_subcommand(self):
