@@ -8,7 +8,7 @@ import pytest
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
 from homeiot.clients.ping import is_any_phone_reachable, ping_ip
-from homeiot.clients.switchbot import SwitchBotClient
+from homeiot.clients.switchbot import SwitchBotClient, SwitchBotWebhookError
 
 
 class TestPingClient:
@@ -275,7 +275,6 @@ class TestSwitchBotClient:
         }
         res = client.parse_webhook_payload(payload)
         assert res.is_motion_detected is True
-        assert res.is_valid is True
         assert res.device_type == 'WoPresence'
         assert res.detection_state == 'DETECTED'
 
@@ -290,26 +289,56 @@ class TestSwitchBotClient:
         }
         res = client.parse_webhook_payload(payload)
         assert res.is_motion_detected is False
+        assert res.device_type == 'WoContact'
+
+    def test_parse_webhook_payload_presence_sensor_pro_with_sample_time(self, client):
+        payload = {
+            'eventType': 'changeReport',
+            'eventVersion': '1',
+            'context': {
+                'deviceType': 'Presence Sensor',
+                'detectionState': 'NOT_DETECTED',
+                'timeOfSample': 1794114741040,
+            },
+        }
+
+        res = client.parse_webhook_payload(payload)
+
+        assert res.device_type == 'Presence Sensor'
+        assert res.detection_state == 'NOT_DETECTED'
+        assert res.sample_time.isoformat() == '2026-11-08T14:12:21.040000'
+
+    def test_parse_webhook_payload_rejects_invalid_sample_time(self, client):
+        payload = {
+            'eventType': 'changeReport',
+            'eventVersion': '1',
+            'context': {
+                'deviceType': 'Presence Sensor',
+                'detectionState': 'DETECTED',
+                'timeOfSample': 'not-a-timestamp',
+            },
+        }
+
+        with pytest.raises(SwitchBotWebhookError, match='invalid timeOfSample'):
+            client.parse_webhook_payload(payload)
 
     def test_parse_webhook_payload_invalid_structure(self, client):
-        res = client.parse_webhook_payload('not a dict')
-        assert res.is_motion_detected is False
-        assert res.is_valid is False
+        with pytest.raises(SwitchBotWebhookError, match='invalid payload'):
+            client.parse_webhook_payload('not a dict')
 
-        res = client.parse_webhook_payload({
-            'eventType': 'changeReport',
-            'eventVersion': '1',
-            'context': 'not a dict',
-        })
-        assert res.is_motion_detected is False
-        assert res.is_valid is False
+        with pytest.raises(SwitchBotWebhookError, match='missing context'):
+            client.parse_webhook_payload({
+                'eventType': 'changeReport',
+                'eventVersion': '1',
+                'context': 'not a dict',
+            })
 
-        res = client.parse_webhook_payload({
-            'eventType': 'changeReport',
-            'eventVersion': '1',
-            'context': {'deviceType': 'WoPresence'},
-        })
-        assert res.is_valid is False
+        with pytest.raises(SwitchBotWebhookError, match='missing context fields'):
+            client.parse_webhook_payload({
+                'eventType': 'changeReport',
+                'eventVersion': '1',
+                'context': {'deviceType': 'WoPresence'},
+            })
 
     def test_parse_webhook_payload_rejects_unexpected_type_and_version(self, client):
         payload = {
@@ -321,5 +350,7 @@ class TestSwitchBotClient:
         wrong_type = {**payload, 'eventType': 'wrong'}
         wrong_version = {**payload, 'eventVersion': '1.0'}
 
-        assert client.parse_webhook_payload(wrong_type).is_valid is False
-        assert client.parse_webhook_payload(wrong_version).is_valid is False
+        with pytest.raises(SwitchBotWebhookError, match='invalid eventType'):
+            client.parse_webhook_payload(wrong_type)
+        with pytest.raises(SwitchBotWebhookError, match='invalid eventVersion'):
+            client.parse_webhook_payload(wrong_version)

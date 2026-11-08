@@ -1,13 +1,15 @@
 '''HomeIotManager - Web 層 単体テスト'''
 
 import logging
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
 
 from homeiot.app import create_app
-from homeiot.clients.switchbot import SwitchBotWebhookResult
+from homeiot.clients.switchbot import SwitchBotWebhookError, SwitchBotWebhookResult
 from homeiot.config import Config
+from homeiot.db.connector import PresenceSensorValue
 
 
 class TestWebApp:
@@ -18,6 +20,7 @@ class TestWebApp:
         mock_config = mocker.MagicMock(spec=Config)
         mock_config.switchbot_webhook_token = 'secret_token'
         mock_db = mocker.MagicMock()
+        mock_db.add_presence_sensor_log = mocker.AsyncMock()
         mock_switchbot_client = mocker.MagicMock()
         mock_home_service = mocker.MagicMock()
         mock_home_service.is_present = mocker.AsyncMock(return_value=False)
@@ -71,8 +74,6 @@ class TestWebApp:
         _, client, _, _, mock_switchbot_client, mock_home_service = app_setup
         mock_switchbot_client.verify_token.return_value = True
         mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
-            is_valid=True,
-            is_motion_detected=True,
             device_type='WoPresence',
             detection_state='DETECTED',
         )
@@ -95,8 +96,6 @@ class TestWebApp:
         _, client, _, _, mock_switchbot_client, mock_home_service = app_setup
         mock_switchbot_client.verify_token.return_value = True
         mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
-            is_valid=True,
-            is_motion_detected=False,
             device_type='WoPresence',
             detection_state='NOT_DETECTED',
         )
@@ -108,13 +107,42 @@ class TestWebApp:
         mock_home_service.is_present.assert_not_called()
         mock_home_service.handle_presence_check.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ('state', 'value'),
+        [
+            ('DETECTED', PresenceSensorValue.DETECTED),
+            ('NOT_DETECTED', PresenceSensorValue.NOT_DETECTED),
+        ],
+    )
+    def test_switchbot_webhook_saves_presence_sensor_pro_state(self, app_setup, state, value):
+        _, client, _, mock_db, mock_switchbot_client, mock_home_service = app_setup
+        mock_switchbot_client.verify_token.return_value = True
+        sample_time = datetime(2026, 11, 8, 22, 12, 21, 40000)
+        mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
+            device_type='Presence Sensor',
+            detection_state=state,
+            sample_time=sample_time,
+        )
+        payload = {
+            'eventType': 'changeReport',
+            'eventVersion': '1',
+            'context': {'deviceType': 'Presence Sensor', 'detectionState': state},
+        }
+
+        response = client.post('/switchbot/all?token=secret_token', json=payload)
+
+        assert response.status_code == 204
+        mock_db.add_presence_sensor_log.assert_awaited_once_with(value, sample_time)
+        mock_home_service.is_present.assert_not_called()
+        mock_home_service.handle_presence_check.assert_not_called()
+
     def test_switchbot_webhook_logs_serialized_request_body(self, app_setup, caplog):
         '''リクエスト本文が改行なしの JSON として info ログに記録されるか'''
         _, client, _, _, mock_switchbot_client, _ = app_setup
         mock_switchbot_client.verify_token.return_value = True
         mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
-            is_valid=True,
-            is_motion_detected=False,
+            device_type='OtherDevice',
+            detection_state='UNKNOWN',
         )
         caplog.set_level(logging.INFO, logger='homeiot.web.webhook')
 
@@ -130,8 +158,8 @@ class TestWebApp:
         _, client, _, _, mock_switchbot_client, mock_home_service = app_setup
         mock_switchbot_client.verify_token.return_value = True
         mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
-            is_valid=True,
-            is_motion_detected=True,
+            device_type='WoPresence',
+            detection_state='DETECTED',
         )
         mock_home_service.is_present.return_value = True
 
@@ -144,11 +172,7 @@ class TestWebApp:
     def test_switchbot_webhook_rejects_invalid_payload(self, app_setup):
         _, client, _, _, mock_switchbot_client, mock_home_service = app_setup
         mock_switchbot_client.verify_token.return_value = True
-        mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
-            is_valid=False,
-            is_motion_detected=False,
-            error='invalid eventVersion',
-        )
+        mock_switchbot_client.parse_webhook_payload.side_effect = SwitchBotWebhookError('invalid eventVersion')
 
         response = client.post('/switchbot/all?token=secret_token', json={})
 
@@ -161,8 +185,8 @@ class TestWebApp:
         _, client, _, _, mock_switchbot_client, mock_home_service = app_setup
         mock_switchbot_client.verify_token.return_value = True
         mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
-            is_valid=True,
-            is_motion_detected=True,
+            device_type='WoPresence',
+            detection_state='DETECTED',
         )
         mock_home_service.is_present.return_value = False
         mock_home_service.handle_presence_check.side_effect = RuntimeError('Internal error')

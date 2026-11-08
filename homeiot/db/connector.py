@@ -28,6 +28,13 @@ class InOutValue(int, Enum):
     IN = 1
 
 
+class PresenceSensorValue(int, Enum):
+    '''presence_sensor テーブルの検知状態'''
+
+    NOT_DETECTED = 0
+    DETECTED = 1
+
+
 class DBConnector:
     '''MySQL データベースコネクタおよび DAO クラス (非同期)'''
 
@@ -112,6 +119,18 @@ class DBConnector:
         if event_time is None:
             event_time = datetime.now()
         query = 'INSERT INTO in_out (datetime, value) VALUES (%s, %s)'
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(query, (event_time, value.value))
+
+    async def add_presence_sensor_log(
+        self, value: PresenceSensorValue, event_time: Optional[datetime] = None
+    ) -> None:
+        '''presence_sensor テーブルに人感センサー Pro の状態を追加します。'''
+        if event_time is None:
+            event_time = datetime.now()
+        query = 'INSERT INTO presence_sensor (datetime, value) VALUES (%s, %s)'
         pool = await self.get_pool()
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:

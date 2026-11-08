@@ -17,7 +17,7 @@
   - 外出時: 一定時間経過後の自動消灯、日中時間帯かつ未清掃時のルンバ自動清掃開始
 - **設定・状態管理**:
   - ルンバ稼働抑制日（一時的な清掃停止日）のデータベース管理および制御ロジック（※保守コスト削減のため Web UI 設定画面は非搭載）
-  - MySQL による状態日時（`lasts`）、抑制日（`roomy_lock`）、入退室ログ（`in_out`）の永続化
+  - MySQL による状態日時（`lasts`）、抑制日（`roomy_lock`）、入退室ログ（`in_out`）、人感センサー Pro の状態履歴（`presence_sensor`）の永続化
 
 ---
 
@@ -126,6 +126,26 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 
 アプリケーションは `id` を指定せずに INSERT し、DB の AUTO_INCREMENT に採番させます。入退室ログ追加処理は `datetime` と `value` の両方に値を渡します。
 
+#### 4. `presence_sensor` テーブル
+SwitchBot 人感センサー Pro (`Presence Sensor`) の状態変更履歴を保存します。`in_out` と同じ列構成です。
+
+| カラム名 | 型 | 説明 |
+|---|---|---|
+| `id` | `INT(11) NOT NULL` (PK, AUTO_INCREMENT) | 行 ID |
+| `datetime` | `DATETIME NOT NULL` | センサー状態のサンプル日時（Webhook の `timeOfSample` を日本時間に変換。値がなければ受信時刻） |
+| `value` | `TINYINT(1) NOT NULL` | 検知状態 (`0`: `NOT_DETECTED`, `1`: `DETECTED`) |
+
+デプロイ前に次のDDLを実行してテーブルを作成します。アプリケーションの起動時にはスキーマを自動変更しません。
+
+```sql
+CREATE TABLE presence_sensor (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    datetime DATETIME NOT NULL,
+    value TINYINT(1) NOT NULL,
+    PRIMARY KEY (id)
+);
+```
+
 ### 入退室判定とログ記録
 
 - Worker は10秒間隔で判定します。スマートフォンのいずれかに Ping 応答があれば在宅、人感センサーの有効な `DETECTED` イベントも在宅検知として扱います。
@@ -155,9 +175,11 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
      - `dock_roomy`: ルンバの帰還
      - `turn_on_ceiling_light`: シーリングライト点灯
      - `turn_off_ceiling_light`: シーリングライト消灯
-4. **SwitchBot クライアント / ハンドラー (`homeiot.clients.switchbot`, `homeiot.web.webhook`)**:
-   - SwitchBot Cloud からの Webhook ペイロード（`changeReport`, `WoPresence`, `DETECTED`）を検証・解析。
-   - トークン検証に合格し、かつスマホ未在宅の状態で人感センサーが検知した場合に「帰宅」処理を即時トリガー。
+4. **SwitchBot Webhook (`homeiot.clients.switchbot`, `homeiot.web.webhook`, `homeiot.web.switchbot_handlers`)**:
+   - `homeiot.web.webhook` がトークン検証、共通ペイロード検証を行い、`deviceType` に応じて登録済みハンドラーへ振り分ける。
+   - `WoPresence` の `DETECTED` は、スマホ未在宅の場合に「帰宅」処理を即時トリガーする。
+   - `Presence Sensor` は `DETECTED` / `NOT_DETECTED` の両状態を `presence_sensor` に保存する。`timeOfSample` がある場合はその日時を使う。
+   - 未登録のデバイス種別と未対応状態は記録・制御せず、Webhook の受信自体は成功として扱う。新デバイスは専用ハンドラーを登録して拡張する。
 
 ---
 
@@ -198,6 +220,7 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 | `HUE_ON_GROUP_ID` | `'2'` | 帰宅時点灯対象の Hue グループ ID |
 | `HUE_OFF_GROUP_ID` | `'3'` | 外出時消灯対象の Hue グループ ID |
 | `WEB_PORT` | `8001` | Web コンテナ内のリッスンポート（ホスト側は `8082`） |
+| `JAPAN_TIMEZONE` | UTC+09:00 | SwitchBot `timeOfSample` を日本時間の `DATETIME` に変換するタイムゾーン |
 
 ---
 
