@@ -148,7 +148,8 @@ CREATE TABLE presence_sensor (
 
 ### 入退室判定とログ記録
 
-- Worker は10秒間隔で判定します。スマートフォンのいずれかに Ping 応答があれば在宅、人感センサーの有効な `DETECTED` イベントも在宅検知として扱います。
+- Worker は10秒間隔で判定します。スマートフォンのいずれかに Ping 応答があれば在宅として扱います。`WoPresence` の有効な `DETECTED` は即時の在宅検知として扱います。
+- 在室確認では `presence_sensor` の最新行（`datetime` 降順、同時刻は `id` 降順）も参照します。最新値が `DETECTED` なら、スマートフォンの Ping 応答がなくても在宅として扱います。最新値が `NOT_DETECTED` または履歴なしの場合は、従来どおりスマートフォンの Ping 結果で判定します。
 - 在宅検知時、`lasts.in` から5分以上経過していれば帰宅と判定します。このとき `in_out` に外出 (`value=0`, 前回 `lasts.in` の時刻) と帰宅 (`value=1`, 現在時刻) を順に記録し、`lasts.in` / `lasts.out` を現在時刻に更新します。
 - 不在時は、`lasts.in` から5分以上経過して外出後の制御対象になります。外出確定時点では `in_out` に行を追加しません。
 - `lasts.out` から3分以内の不在は帰宅直後の猶予として `lasts.in` を延長します。`lasts.out` が未登録の場合は帰宅直後である根拠がないため、この猶予を適用しません。
@@ -178,7 +179,7 @@ CREATE TABLE presence_sensor (
 4. **SwitchBot Webhook (`homeiot.clients.switchbot`, `homeiot.web.webhook`, `homeiot.web.switchbot_handlers`)**:
    - `homeiot.web.webhook` がトークン検証、共通ペイロード検証を行い、`deviceType` に応じて登録済みハンドラーへ振り分ける。
    - `WoPresence` の `DETECTED` は、スマホ未在宅の場合に「帰宅」処理を即時トリガーする。
-   - `Presence Sensor` は `DETECTED` / `NOT_DETECTED` の両状態を `presence_sensor` に保存する。`timeOfSample` がある場合はその日時を使う。
+   - `Presence Sensor` は `DETECTED` / `NOT_DETECTED` の両状態を `presence_sensor` に保存する。`timeOfSample` がある場合はその日時を使い、在室確認では同テーブルの最新状態を判定に使う。
    - 未登録のデバイス種別と未対応状態は記録・制御せず、Webhook の受信自体は成功として扱う。新デバイスは専用ハンドラーを登録して拡張する。
 
 ---
