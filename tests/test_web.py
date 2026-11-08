@@ -1,5 +1,7 @@
 '''HomeIotManager - Web 層 単体テスト'''
 
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -105,6 +107,24 @@ class TestWebApp:
         assert response.text == ''
         mock_home_service.is_present.assert_not_called()
         mock_home_service.handle_presence_check.assert_not_called()
+
+    def test_switchbot_webhook_logs_serialized_request_body(self, app_setup, caplog):
+        '''リクエスト本文が改行なしの JSON として info ログに記録されるか'''
+        _, client, _, _, mock_switchbot_client, _ = app_setup
+        mock_switchbot_client.verify_token.return_value = True
+        mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
+            is_valid=True,
+            is_motion_detected=False,
+        )
+        caplog.set_level(logging.INFO, logger='homeiot.web.webhook')
+
+        payload = {'message': '在宅確認', 'nested': {'count': 1}}
+        response = client.post('/switchbot/all?token=secret_token', json=payload)
+
+        assert response.status_code == 204
+        assert [record.getMessage() for record in caplog.records] == [
+            'SwitchBot webhook request body: {"message": "在宅確認", "nested": {"count": 1}}',
+        ]
 
     def test_switchbot_webhook_skips_motion_when_phone_is_present(self, app_setup):
         _, client, _, _, mock_switchbot_client, mock_home_service = app_setup

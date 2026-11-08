@@ -3,6 +3,7 @@
 SwitchBot 人感センサー等からの Webhook イベントを受信・処理します。
 '''
 
+import json
 import logging
 from typing import Optional
 
@@ -30,6 +31,8 @@ async def handle_switchbot_webhook(request: Request, token: Optional[str] = None
         payload = await request.json()
     except Exception:
         payload = {}
+
+    logger.info('SwitchBot webhook request body: %s', json.dumps(payload, ensure_ascii=False))
 
     parsed = switchbot_client.parse_webhook_payload(payload)
     if not parsed.is_valid:
