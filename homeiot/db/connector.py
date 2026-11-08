@@ -135,3 +135,13 @@ class DBConnector:
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
                 await cursor.execute(query, (event_time, value.value))
+
+    async def get_latest_presence_sensor_state(self) -> Optional[PresenceSensorValue]:
+        '''presence_sensor テーブルから最新の検知状態を取得します。'''
+        query = 'SELECT value FROM presence_sensor ORDER BY datetime DESC, id DESC LIMIT 1'
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(query)
+                row = await cursor.fetchone()
+                return PresenceSensorValue(row[0]) if row else None

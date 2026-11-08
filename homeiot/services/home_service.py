@@ -13,7 +13,7 @@ from homeiot.clients import ping
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
 from homeiot.config import Config
-from homeiot.db.connector import DBConnector, InOutValue, LastName
+from homeiot.db.connector import DBConnector, InOutValue, LastName, PresenceSensorValue
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,14 @@ class HomeService:
         self.ifttt_client = ifttt_client
 
     async def is_present(self, motion_detected: bool = False) -> bool:
-        '''人感センサー検知またはスマホ Ping 疎通確認から在宅判定を行います。'''
+        '''各人感センサーの最新状態またはスマホ Ping 疎通確認から在宅判定を行います。'''
         if motion_detected:
             return True
+
+        sensor_state = await self.db.get_latest_presence_sensor_state()
+        if sensor_state == PresenceSensorValue.DETECTED:
+            return True
+
         if not self.config.target_phone_ips:
             return False
         return await ping.is_any_phone_reachable(self.config.target_phone_ips)

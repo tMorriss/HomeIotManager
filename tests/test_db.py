@@ -215,3 +215,28 @@ class TestDBConnector:
         values = mock_cursor.execute.call_args[0][1]
         assert isinstance(values[0], datetime)
         assert values[1] == PresenceSensorValue.DETECTED.value
+
+    @pytest.mark.asyncio
+    async def test_get_latest_presence_sensor_state(self, db_connector, mocker):
+        mock_create_pool = mocker.patch('aiomysql.create_pool', new_callable=mocker.AsyncMock)
+        mock_cursor = mocker.MagicMock()
+        mock_cursor.fetchone = mocker.AsyncMock(return_value=(PresenceSensorValue.DETECTED.value,))
+        mock_pool = self._create_mock_pool(mock_cursor, mocker)
+        mock_create_pool.return_value = mock_pool
+
+        state = await db_connector.get_latest_presence_sensor_state()
+
+        assert state == PresenceSensorValue.DETECTED
+        mock_cursor.execute.assert_awaited_once_with(
+            'SELECT value FROM presence_sensor ORDER BY datetime DESC, id DESC LIMIT 1'
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_latest_presence_sensor_state_empty(self, db_connector, mocker):
+        mock_create_pool = mocker.patch('aiomysql.create_pool', new_callable=mocker.AsyncMock)
+        mock_cursor = mocker.MagicMock()
+        mock_cursor.fetchone = mocker.AsyncMock(return_value=None)
+        mock_pool = self._create_mock_pool(mock_cursor, mocker)
+        mock_create_pool.return_value = mock_pool
+
+        assert await db_connector.get_latest_presence_sensor_state() is None
