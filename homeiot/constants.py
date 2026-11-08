@@ -3,6 +3,10 @@
 システム内で使用される動作パラメータ・数値を一括管理します。
 '''
 
+from datetime import timedelta, timezone
+
+JAPAN_TIMEZONE = timezone(timedelta(hours=9))
+
 CHECK_INTERVAL_SECONDS = 10
 OUT_THRESHOLD_SECONDS = 300
 HUE_THRESHOLD_SECONDS = 600

@@ -7,7 +7,7 @@ from datetime import date, datetime
 import pytest
 
 from homeiot.config import Config
-from homeiot.db.connector import DBConnector, InOutValue, LastName
+from homeiot.db.connector import DBConnector, InOutValue, LastName, PresenceSensorValue
 
 
 class TestDBConnector:
@@ -187,3 +187,31 @@ class TestDBConnector:
         mock_cursor.execute.assert_called_once()
         assert isinstance(mock_cursor.execute.call_args[0][1][0], datetime)
         assert mock_cursor.execute.call_args[0][1][1] == InOutValue.IN.value
+
+    @pytest.mark.asyncio
+    async def test_add_presence_sensor_log(self, db_connector, mocker):
+        mock_create_pool = mocker.patch('aiomysql.create_pool', new_callable=mocker.AsyncMock)
+        now = datetime.now()
+        mock_cursor = mocker.MagicMock()
+        mock_pool = self._create_mock_pool(mock_cursor, mocker)
+        mock_create_pool.return_value = mock_pool
+
+        await db_connector.add_presence_sensor_log(PresenceSensorValue.NOT_DETECTED, now)
+
+        mock_cursor.execute.assert_called_once_with(
+            'INSERT INTO presence_sensor (datetime, value) VALUES (%s, %s)',
+            (now, PresenceSensorValue.NOT_DETECTED.value),
+        )
+
+    @pytest.mark.asyncio
+    async def test_add_presence_sensor_log_default_now(self, db_connector, mocker):
+        mock_create_pool = mocker.patch('aiomysql.create_pool', new_callable=mocker.AsyncMock)
+        mock_cursor = mocker.MagicMock()
+        mock_pool = self._create_mock_pool(mock_cursor, mocker)
+        mock_create_pool.return_value = mock_pool
+
+        await db_connector.add_presence_sensor_log(PresenceSensorValue.DETECTED)
+
+        values = mock_cursor.execute.call_args[0][1]
+        assert isinstance(values[0], datetime)
+        assert values[1] == PresenceSensorValue.DETECTED.value

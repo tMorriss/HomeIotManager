@@ -9,6 +9,9 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
+from homeiot.clients.switchbot import SwitchBotWebhookError
+from homeiot.web.switchbot_handlers import dispatch_switchbot_webhook
+
 logger = logging.getLogger(__name__)
 
 webhook_router = APIRouter()
@@ -18,8 +21,6 @@ webhook_router = APIRouter()
 async def handle_switchbot_webhook(request: Request, token: Optional[str] = None):
     '''SwitchBot Webhook エンドポイント'''
     switchbot_client = request.app.state.switchbot_client
-    home_service = request.app.state.home_service
-
     if not switchbot_client.verify_token(token):
         logger.warning('Unauthorized SwitchBot webhook access attempt.')
         raise HTTPException(
@@ -34,23 +35,19 @@ async def handle_switchbot_webhook(request: Request, token: Optional[str] = None
 
     logger.info('SwitchBot webhook request body: %s', json.dumps(payload, ensure_ascii=False))
 
-    parsed = switchbot_client.parse_webhook_payload(payload)
-    if not parsed.is_valid:
-        logger.warning('Invalid SwitchBot webhook payload: %s', parsed.error)
+    try:
+        parsed = switchbot_client.parse_webhook_payload(payload)
+    except SwitchBotWebhookError as exc:
+        logger.warning('Invalid SwitchBot webhook payload: %s', exc)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Invalid request',
-        )
-
-    if not parsed.is_motion_detected:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        ) from exc
 
     try:
-        # スマホPingで在宅を確認できる場合、人感センサーによる帰宅処理は不要。
-        if not await home_service.is_present():
-            await home_service.handle_presence_check(motion_detected=True)
+        await dispatch_switchbot_webhook(request, parsed)
     except Exception as exc:
-        logger.error('Error occurred during presence check: %s', exc, exc_info=True)
+        logger.error('Error occurred during SwitchBot webhook handling: %s', exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail='Internal Server Error',

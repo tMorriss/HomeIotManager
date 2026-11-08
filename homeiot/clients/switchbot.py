@@ -5,7 +5,10 @@ SwitchBot Cloud から受信した Webhook ペイロードの検証・解析を�
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
+
+from homeiot.constants import JAPAN_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +17,18 @@ logger = logging.getLogger(__name__)
 class SwitchBotWebhookResult:
     '''SwitchBot Webhook ペイロードの解析結果'''
 
-    is_valid: bool
-    is_motion_detected: bool
-    device_type: Optional[object] = None
-    detection_state: Optional[object] = None
-    error: Optional[str] = None
+    device_type: str
+    detection_state: str
+    sample_time: Optional[datetime] = None
+
+    @property
+    def is_motion_detected(self) -> bool:
+        '''従来型人感センサーの検知状態をデバイス種別と状態から求めます。'''
+        return self.device_type == 'WoPresence' and self.detection_state == 'DETECTED'
+
+
+class SwitchBotWebhookError(ValueError):
+    '''SwitchBot Webhook ペイロードを解析できない場合の例外'''
 
 
 class SwitchBotClient:
@@ -34,66 +44,52 @@ class SwitchBotClient:
         return token.strip() == self.webhook_token.strip()
 
     def parse_webhook_payload(self, payload: object) -> SwitchBotWebhookResult:
-        '''SwitchBot 人感センサー (WoPresence) などの Webhook ペイロードを解析します。
+        '''SwitchBot Webhook の共通形式と検知状態を解析します。
 
         例:
         {
             'eventType': 'changeReport',
             'eventVersion': '1',
             'context': {
-                'deviceType': 'WoPresence',
+                'deviceType': 'Presence Sensor',
                 'detectionState': 'DETECTED',
                 'timeOfSample': 1625000000000
             }
         }
         '''
         if not isinstance(payload, dict):
-            return SwitchBotWebhookResult(
-                is_valid=False,
-                is_motion_detected=False,
-                error='invalid payload',
-            )
+            raise SwitchBotWebhookError('invalid payload')
 
         if payload.get('eventType') != 'changeReport':
-            return SwitchBotWebhookResult(
-                is_valid=False,
-                is_motion_detected=False,
-                error='invalid eventType',
-            )
+            raise SwitchBotWebhookError('invalid eventType')
 
         if payload.get('eventVersion') != '1':
-            return SwitchBotWebhookResult(
-                is_valid=False,
-                is_motion_detected=False,
-                error='invalid eventVersion',
-            )
+            raise SwitchBotWebhookError('invalid eventVersion')
 
         context = payload.get('context')
         if not isinstance(context, dict):
-            return SwitchBotWebhookResult(
-                is_valid=False,
-                is_motion_detected=False,
-                error='missing context',
-            )
+            raise SwitchBotWebhookError('missing context')
 
         device_type = context.get('deviceType')
         detection_state = context.get('detectionState')
-        if device_type is None or detection_state is None:
-            return SwitchBotWebhookResult(
-                is_valid=False,
-                is_motion_detected=False,
-                device_type=device_type,
-                detection_state=detection_state,
-                error='missing context fields',
-            )
+        if not isinstance(device_type, str) or not isinstance(detection_state, str):
+            raise SwitchBotWebhookError('missing context fields')
 
-        is_motion_detected = (
-            device_type == 'WoPresence' and detection_state == 'DETECTED'
-        )
+        sample_time = None
+        raw_sample_time = context.get('timeOfSample')
+        if raw_sample_time is not None:
+            if isinstance(raw_sample_time, bool) or not isinstance(raw_sample_time, (int, float)):
+                raise SwitchBotWebhookError('invalid timeOfSample')
+            try:
+                sample_time = datetime.fromtimestamp(
+                    raw_sample_time / 1000,
+                    tz=JAPAN_TIMEZONE,
+                ).replace(tzinfo=None)
+            except (OverflowError, OSError, ValueError):
+                raise SwitchBotWebhookError('invalid timeOfSample') from None
 
         return SwitchBotWebhookResult(
-            is_valid=True,
-            is_motion_detected=is_motion_detected,
             device_type=device_type,
             detection_state=detection_state,
+            sample_time=sample_time,
         )
