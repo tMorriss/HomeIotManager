@@ -1,5 +1,6 @@
 '''HomeIotManager - CLI 単体テスト'''
 
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,21 +13,25 @@ class TestCLI:
 
     @patch('homeiot.cli.BatchWorker')
     @patch('asyncio.run')
-    def test_main_worker_subcommand(self, mock_asyncio_run, mock_batch_worker):
+    @patch('homeiot.cli.logging.basicConfig')
+    def test_main_worker_subcommand(self, mock_basic_config, mock_asyncio_run, mock_batch_worker):
         '''worker サブコマンドで BatchWorker.start が非同期実行されることの検証'''
         mock_worker_instance = MagicMock()
         mock_batch_worker.return_value = mock_worker_instance
 
         cli.main(['worker'])
 
+        mock_basic_config.assert_called_once_with(level=logging.INFO)
         mock_batch_worker.assert_called_once()
         mock_asyncio_run.assert_called_once_with(mock_worker_instance.start())
 
     @patch('uvicorn.run')
-    def test_main_web_subcommand(self, mock_uvicorn_run):
+    @patch('homeiot.cli.logging.basicConfig')
+    def test_main_web_subcommand(self, mock_basic_config, mock_uvicorn_run):
         '''web サブコマンドで uvicorn.run が呼び出されることの検証'''
         cli.main(['web'])
 
+        mock_basic_config.assert_called_once_with(level=logging.INFO)
         mock_uvicorn_run.assert_called_once_with(
             'homeiot.app:create_app',
             factory=True,
