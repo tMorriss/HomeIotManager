@@ -324,7 +324,10 @@ class TestHomeService:
         mock_db.set_last.assert_any_call(LastName.ROOMY, now)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(('elapsed_seconds', 'confirmed'), [(59, False), (60, True)])
+    @pytest.mark.parametrize(
+        ('elapsed_seconds', 'confirmed'),
+        [(constants.OUT_THRESHOLD_SECONDS - 1, False), (constants.OUT_THRESHOLD_SECONDS, True)],
+    )
     async def test_departure_threshold_boundary(self, home_service_setup, mocker, elapsed_seconds, confirmed):
         service, _, mock_db, mock_hue_client, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=False)
