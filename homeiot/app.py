@@ -10,7 +10,7 @@ from fastapi import FastAPI
 
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
-from homeiot.clients.switchbot import SwitchBotClient
+from homeiot.clients.switchbot_webhook import SwitchBotClient
 from homeiot.config import Config
 from homeiot.db.connector import DBConnector
 from homeiot.services.home_service import HomeService

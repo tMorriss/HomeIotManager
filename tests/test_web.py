@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from homeiot.app import create_app
-from homeiot.clients.switchbot import SwitchBotWebhookError, SwitchBotWebhookResult
+from homeiot.clients.switchbot_webhook import SwitchBotWebhookError, SwitchBotWebhookResult
 from homeiot.config import Config
 from homeiot.db.connector import PresenceSensorValue
 

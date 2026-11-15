@@ -5,7 +5,7 @@ from typing import Awaitable, Callable
 
 from fastapi import Request
 
-from homeiot.clients.switchbot import SwitchBotWebhookResult
+from homeiot.clients.switchbot_webhook import SwitchBotWebhookResult
 from homeiot.db.connector import PresenceSensorValue
 
 logger = logging.getLogger(__name__)
