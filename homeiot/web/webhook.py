@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
-from homeiot.clients.switchbot import SwitchBotWebhookError
+from homeiot.clients.switchbot_webhook import SwitchBotWebhookError
 from homeiot.web.switchbot_handlers import dispatch_switchbot_webhook
 
 logger = logging.getLogger(__name__)

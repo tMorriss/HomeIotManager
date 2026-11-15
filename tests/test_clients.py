@@ -8,7 +8,7 @@ import pytest
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
 from homeiot.clients.ping import is_any_phone_reachable, ping_ip
-from homeiot.clients.switchbot import SwitchBotClient, SwitchBotWebhookError
+from homeiot.clients.switchbot_webhook import SwitchBotClient, SwitchBotWebhookError
 
 
 class TestPingClient:

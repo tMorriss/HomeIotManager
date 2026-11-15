@@ -176,7 +176,7 @@ CREATE TABLE presence_sensor (
      - `dock_roomy`: ルンバの帰還
      - `turn_on_ceiling_light`: シーリングライト点灯
      - `turn_off_ceiling_light`: シーリングライト消灯
-4. **SwitchBot Webhook (`homeiot.clients.switchbot`, `homeiot.web.webhook`, `homeiot.web.switchbot_handlers`)**:
+4. **SwitchBot Webhook (`homeiot.clients.switchbot_webhook`, `homeiot.web.webhook`, `homeiot.web.switchbot_handlers`)**:
    - `homeiot.web.webhook` がトークン検証、共通ペイロード検証を行い、`deviceType` に応じて登録済みハンドラーへ振り分ける。
    - `WoPresence` の `DETECTED` は、スマホ未在宅の場合に「帰宅」処理を即時トリガーする。
    - `Presence Sensor` は `DETECTED` / `NOT_DETECTED` の両状態を `presence_sensor` に保存する。`timeOfSample` がある場合はその日時を使い、在室確認では同テーブルの最新状態を判定に使う。
