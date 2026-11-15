@@ -46,14 +46,30 @@ class SwitchBotClient:
     def parse_webhook_payload(self, payload: object) -> SwitchBotWebhookResult:
         '''SwitchBot Webhook の共通形式と検知状態を解析します。
 
-        例:
+        例: 人感センサー
         {
-            'eventType': 'changeReport',
-            'eventVersion': '1',
-            'context': {
-                'deviceType': 'Presence Sensor',
-                'detectionState': 'DETECTED',
-                'timeOfSample': 1625000000000
+            "eventType": "changeReport",
+            "eventVersion": "1",
+            "context": {
+                "battery": 20,
+                "brightness": "bright",
+                "detectionState": "DETECTED",
+                "deviceMac": "xxxxx",
+                "deviceType": "WoPresence",
+                "timeOfSample": 1794733691618
+            }
+        }
+        例: 人感センサーPro
+        {
+            "eventType": "changeReport",
+            "eventVersion": "1",
+            "context": {
+                "battery": 60,
+                "detectionState": "DETECTED",
+                "deviceMac": "xxxxx",
+                "deviceType": "Presence Sensor",
+                "lightLevel": 4,
+                "timeOfSample": 1794720011587
             }
         }
         '''
