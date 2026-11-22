@@ -77,7 +77,7 @@ MoneyBook と同様に、Quadlet の `.pod` と `.container` ユニット（`bui
   ※ 保守コスト削減のため、ルンバ稼働抑制日（`roomy_lock`）の Web UI 設定画面（`/settings`）は非搭載とし、DB テーブルおよびバックエンド判定ロジックのみを保持します。
 - **Worker コンテナ (`homeiot-worker`)**:
   - 常駐 Python プロセス
-  - 10秒間隔（定数 `CHECK_INTERVAL_SECONDS`）で在宅監視ループを実行
+  - 10秒間隔（定数 `PRESENCE_CHECK_INTERVAL_SECONDS`）で在室判定ループを実行
   - スマホへの Ping 疎通確認、在宅・外出の判定、ルンバ・照明の自動制御、DB 記録
 - **LAN 接続**:
   - Worker は Podman の rootless ネットワークから宅内スマートフォンへ ICMP Ping を送り、Hue ブリッジへ接続します。Pod のホストポート公開は Web への受信接続に使用します。
@@ -96,7 +96,7 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 
 | カラム名 | 型 | 説明 |
 |---|---|---|
-| `name` | `VARCHAR(20) NOT NULL` (PK) | イベント種別キー (`in`, `out`, `roomy`, `hue_off`) |
+| `name` | `VARCHAR(32) NOT NULL` (PK) | イベント種別キー (`in`, `out`, `roomy`, `hue_off`, `presence_sensor_active`, `presence_sensor_inactive`) |
 | `time` | `DATETIME NOT NULL` | 最終記録日時 |
 
 実環境の定義は `name` が PRIMARY KEY です。保存には `INSERT ... ON DUPLICATE KEY UPDATE` を使い、キーが未登録なら INSERT、登録済みなら `time` を UPDATE します。この処理は1文で原子的に実行されます。
@@ -105,6 +105,13 @@ SQL クエリ発行時はプリペアドステートメント（パラメータ�
 - `out`: 最終帰宅処理時刻（帰宅判定時に更新。外出確定時には更新しない）
 - `roomy`: 最終ルンバ稼働日/時刻
 - `hue_off`: 最終 Hue 消灯時刻
+- `presence_sensor_active` / `presence_sensor_inactive`: Presence Sensor の死活確認結果ごとの最新確認日時
+
+既存環境では、死活監視を有効にする前にキー列を拡張してください（既存行は保持されます）。
+
+```sql
+ALTER TABLE lasts MODIFY name VARCHAR(32) NOT NULL;
+```
 
 #### 2. `roomy_lock` テーブル
 ルンバの稼働を抑制する日付を保持します。抑制日が当日以降の場合はルンバを自動起動しません。テーブルが空の場合、抑制日はありません。
@@ -149,7 +156,8 @@ CREATE TABLE presence_sensor (
 ### 入退室判定とログ記録
 
 - Worker は10秒間隔で判定します。スマートフォンのいずれかに Ping 応答があれば在宅として扱います。`WoPresence` の有効な `DETECTED` は即時の在宅検知として扱います。
-- 在室確認では `presence_sensor` の最新行（`datetime` 降順、同時刻は `id` 降順）も参照します。最新値が `DETECTED` なら、スマートフォンの Ping 応答がなくても在宅として扱います。最新値が `NOT_DETECTED` または履歴なしの場合は、従来どおりスマートフォンの Ping 結果で判定します。
+- `BatchWorker.start()` は10秒の在室判定ループと10分の死活監視ループを周期処理一覧から同列に起動し、停止要求まで動かします。周期処理を増やす場合も一覧へ追加します。監視周期は Worker 内の待機で管理し、`lasts` は状態と確認日時の記録に使います。`statusCode=100` は active、それ以外または通信失敗は inactive とし、それぞれ `lasts.presence_sensor_active` / `lasts.presence_sensor_inactive` に確認日時を保存します。
+- 在室確認では `presence_sensor_active` が `presence_sensor_inactive` より新しい場合に限り、`presence_sensor` の最新行（`datetime` 降順、同時刻は `id` 降順）を参照します。active の記録がない場合や inactive の方が新しい場合はセンサー履歴を判定に使わず、スマートフォンの Ping 結果で判定します。
 - 在宅検知時、`lasts.in` から3分（180秒）以上経過していれば帰宅と判定します。このとき `in_out` に外出 (`value=0`, 前回 `lasts.in` の時刻) と帰宅 (`value=1`, 現在時刻) を順に記録し、`lasts.in` / `lasts.out` を現在時刻に更新します。
 - 不在が3分（180秒）以上続くと外出と判定して、外出後の制御対象になります。Presence Sensor Pro の状態を在室判定に利用します。外出確定時点では `in_out` に行を追加しません。
 - `lasts.out` から3分以内の不在は帰宅直後の猶予として `lasts.in` を延長します。`lasts.out` が未登録の場合は帰宅直後である根拠がないため、この猶予を適用しません。
@@ -179,8 +187,11 @@ CREATE TABLE presence_sensor (
 4. **SwitchBot Webhook (`homeiot.clients.switchbot_webhook`, `homeiot.web.webhook`, `homeiot.web.switchbot_handlers`)**:
    - `homeiot.web.webhook` がトークン検証、共通ペイロード検証を行い、`deviceType` に応じて登録済みハンドラーへ振り分ける。
    - `WoPresence` の `DETECTED` は、スマホ未在宅の場合に「帰宅」処理を即時トリガーする。
-   - `Presence Sensor` は `DETECTED` / `NOT_DETECTED` の両状態を `presence_sensor` に保存する。`timeOfSample` がある場合はその日時を使い、在室確認では同テーブルの最新状態を判定に使う。
+   - `Presence Sensor` は `DETECTED` / `NOT_DETECTED` の両状態を `presence_sensor` に保存する。`timeOfSample` がある場合はその日時を使い、死活状態が active の間だけ最新状態を在室判定に使う。
    - 未登録のデバイス種別と未対応状態は記録・制御せず、Webhook の受信自体は成功として扱う。新デバイスは専用ハンドラーを登録して拡張する。
+5. **SwitchBot OpenAPI (`homeiot.clients.switchbot`)**:
+   - 汎用リクエストメソッドが HTTP メソッドとパスを受け取り、API v1.1 の署名認証付きで呼び出す。`is_active(device_id)` が状態取得パスを組み立て、`statusCode=100` の場合だけ active とする。
+   - Worker は10分間隔で `is_active(device_id)` を実行する。
 
 ---
 
@@ -204,13 +215,17 @@ CREATE TABLE presence_sensor (
 | `HUE_ON_SCENE_ID` | **必須** | 帰宅時に呼び出すシーン ID |
 | `IFTTT_WEBHOOK_KEY` | **必須** | IFTTT Webhook サービスの秘密キー |
 | `SWITCHBOT_WEBHOOK_TOKEN` | **必須** | SwitchBot Webhook リクエスト検証用トークン |
+| `SWITCHBOT_API_TOKEN` | **必須** | SwitchBot OpenAPI v1.1 の Open Token |
+| `SWITCHBOT_API_SECRET` | **必須** | SwitchBot OpenAPI v1.1 の Secret Key |
+| `PRESENCE_SENSOR_DEVICE_ID` | **必須** | 死活監視対象 Presence Sensor の device ID |
 
 ### 6.2 動作パラメータ・数値設定 (`homeiot/constants.py` に集約)
 環境変数化する必要のない動作パラメータは、変更時に直接コードを編集できるよう `homeiot/constants.py` の1箇所にまとめて定義します。
 
 | 定数名 | 設定値 | 説明 |
 |---|---|---|
-| `CHECK_INTERVAL_SECONDS` | `10` | Worker 常駐プロセスの監視インターバル（10秒） |
+| `PRESENCE_CHECK_INTERVAL_SECONDS` | `10` | 在室判定ループの実行間隔（10秒） |
+| `PRESENCE_SENSOR_HEALTH_CHECK_INTERVAL_SECONDS` | `600` | Presence Sensor 死活監視間隔（10分） |
 | `OUT_THRESHOLD_SECONDS` | `180` | 外出・帰宅確定までのしきい値（3分 / 180秒） |
 | `HUE_THRESHOLD_SECONDS` | `600` | ライト消灯判定のしきい値（10分 / 600秒） |
 | `LAST_IN_THRESHOLD_SECONDS` | `180` | 帰宅直後の在宅維持判定しきい値（3分 / 180秒） |

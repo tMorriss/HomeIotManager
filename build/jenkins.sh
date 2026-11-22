@@ -23,6 +23,9 @@ REQUIRED_VARS=(
     "HUE_ON_SCENE_ID"
     "IFTTT_WEBHOOK_KEY"
     "SWITCHBOT_WEBHOOK_TOKEN"
+    "SWITCHBOT_API_TOKEN"
+    "SWITCHBOT_API_SECRET"
+    "PRESENCE_SENSOR_DEVICE_ID"
 )
 
 for var in "${REQUIRED_VARS[@]}"; do
@@ -76,6 +79,9 @@ create_or_update_secret homeiot_hue_api_user "$HUE_API_USER"
 create_or_update_secret homeiot_hue_on_scene_id "$HUE_ON_SCENE_ID"
 create_or_update_secret homeiot_ifttt_webhook_key "$IFTTT_WEBHOOK_KEY"
 create_or_update_secret homeiot_switchbot_webhook_token "$SWITCHBOT_WEBHOOK_TOKEN"
+create_or_update_secret homeiot_switchbot_api_token "$SWITCHBOT_API_TOKEN"
+create_or_update_secret homeiot_switchbot_api_secret "$SWITCHBOT_API_SECRET"
+create_or_update_secret homeiot_presence_sensor_device_id "$PRESENCE_SENSOR_DEVICE_ID"
 
 # 7. Quadlet ユニットを配置
 QUADLET_DIR="$HOME/.config/containers/systemd/homeiot"

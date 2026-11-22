@@ -19,6 +19,8 @@ class LastName(str, Enum):
     OUT = 'out'
     ROOMY = 'roomy'
     HUE_OFF = 'hue_off'
+    PRESENCE_SENSOR_ACTIVE = 'presence_sensor_active'
+    PRESENCE_SENSOR_INACTIVE = 'presence_sensor_inactive'
 
 
 class InOutValue(int, Enum):

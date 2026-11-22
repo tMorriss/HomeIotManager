@@ -24,6 +24,9 @@ class TestConfig:
             'HUE_ON_SCENE_ID': 'scene123',
             'IFTTT_WEBHOOK_KEY': 'iftttkey',
             'SWITCHBOT_WEBHOOK_TOKEN': 'swtoken',
+            'SWITCHBOT_API_TOKEN': 'api-token',
+            'SWITCHBOT_API_SECRET': 'api-secret',
+            'PRESENCE_SENSOR_DEVICE_ID': 'sensor-123',
         }
         monkeypatch.setattr(os, 'environ', env)
         config = Config()
@@ -38,6 +41,9 @@ class TestConfig:
         assert config.hue_on_scene_id == 'scene123'
         assert config.ifttt_webhook_key == 'iftttkey'
         assert config.switchbot_webhook_token == 'swtoken'
+        assert config.switchbot_api_token == 'api-token'
+        assert config.switchbot_api_secret == 'api-secret'
+        assert config.presence_sensor_device_id == 'sensor-123'
 
     def test_invalid_db_port_raises_error(self, monkeypatch):
         '''不正な DB_PORT の場合に ValueError が発生することの検証'''

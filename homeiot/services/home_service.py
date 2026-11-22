@@ -38,9 +38,14 @@ class HomeService:
         if motion_detected:
             return True
 
-        sensor_state = await self.db.get_latest_presence_sensor_state()
-        if sensor_state == PresenceSensorValue.DETECTED:
-            return True
+        sensor_active = await self.db.get_last(LastName.PRESENCE_SENSOR_ACTIVE)
+        sensor_inactive = await self.db.get_last(LastName.PRESENCE_SENSOR_INACTIVE)
+        if sensor_active is not None and (
+            sensor_inactive is None or sensor_active > sensor_inactive
+        ):
+            sensor_state = await self.db.get_latest_presence_sensor_state()
+            if sensor_state == PresenceSensorValue.DETECTED:
+                return True
 
         if not self.config.target_phone_ips:
             return False
