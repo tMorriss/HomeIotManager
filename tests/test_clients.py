@@ -1,13 +1,20 @@
 '''HomeIotManager - 外部IoT連携クライアントの単体テスト (非同期)'''
 
+import base64
+import hashlib
+import hmac
 import subprocess
+from types import SimpleNamespace
 
 import httpx
 import pytest
 
+from homeiot import constants
+from homeiot.clients import switchbot as switchbot_module
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
 from homeiot.clients.ping import is_any_phone_reachable, ping_ip
+from homeiot.clients.switchbot import SwitchBotApiClient
 from homeiot.clients.switchbot_webhook import SwitchBotClient, SwitchBotWebhookError
 
 
@@ -354,3 +361,110 @@ class TestSwitchBotClient:
             client.parse_webhook_payload(wrong_type)
         with pytest.raises(SwitchBotWebhookError, match='invalid eventVersion'):
             client.parse_webhook_payload(wrong_version)
+
+
+class TestSwitchBotApiClient:
+    '''SwitchBot OpenAPI クライアントのテスト'''
+
+    @pytest.fixture
+    def api_client(self, mocker):
+        http_client = mocker.MagicMock(spec=httpx.AsyncClient)
+        http_client.is_closed = False
+        http_client.aclose = mocker.AsyncMock()
+        http_client.request = mocker.AsyncMock()
+        return SwitchBotApiClient('api-token', 'api-secret', client=http_client), http_client
+
+    def test_auth_headers_sign_token_timestamp_and_nonce(self, monkeypatch):
+        monkeypatch.setattr(switchbot_module, 'time', SimpleNamespace(time=lambda: 1.234))
+        monkeypatch.setattr(switchbot_module, 'uuid', SimpleNamespace(uuid4=lambda: 'fixed-nonce'))
+        client = SwitchBotApiClient('api-token', 'api-secret')
+
+        headers = client._auth_headers()
+
+        message = b'api-token1234fixed-nonce'
+        digest = hmac.new(b'api-secret', message, hashlib.sha256).digest()
+        assert headers == {
+            'Authorization': 'api-token',
+            'sign': base64.b64encode(digest).decode('utf-8'),
+            't': '1234',
+            'nonce': 'fixed-nonce',
+        }
+
+    @pytest.mark.asyncio
+    async def test_request_formats_device_path_and_uses_http_method(self, mocker):
+        class MockResponse:
+            status_code = 200
+
+            def raise_for_status(self):
+                return None
+
+        class MockAsyncClient:
+            is_closed = False
+
+            async def request(self, method, url, **kwargs):
+                self.request_args = (method, url, kwargs)
+                return MockResponse()
+
+        http_client = MockAsyncClient()
+        client = SwitchBotApiClient('api-token', 'api-secret', client=http_client)
+        mocker.patch.object(client, '_auth_headers', return_value={'Authorization': 'api-token'})
+
+        response = await client.request(
+            'POST',
+            '/v1.1/devices/device-123/commands',
+            headers={'X-Test': 'value'},
+            json={'command': 'turnOn'},
+        )
+
+        assert response.status_code == 200
+        method, url, kwargs = http_client.request_args
+        assert method == 'POST'
+        assert url == f'{constants.SWITCHBOT_API_BASE_URL}/v1.1/devices/device-123/commands'
+        assert kwargs == {
+            'timeout': constants.SWITCHBOT_API_TIMEOUT_SECONDS,
+            'headers': {'X-Test': 'value', 'Authorization': 'api-token'},
+            'json': {'command': 'turnOn'},
+        }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(('status_code', 'is_active'), [(100, True), (190, False), (None, False)])
+    async def test_is_active_checks_api_status_code(self, api_client, mocker, status_code, is_active):
+        client, _ = api_client
+        response = mocker.MagicMock()
+        response.json.return_value = {'statusCode': status_code}
+        mock_request = mocker.patch.object(client, 'request', new_callable=mocker.AsyncMock)
+        mock_request.return_value = response
+
+        result = await client.is_active('sensor-123')
+
+        assert result is is_active
+        mock_request.assert_awaited_once_with(
+            method='GET',
+            path='/v1.1/devices/sensor-123/status',
+        )
+
+    @pytest.mark.asyncio
+    async def test_is_active_returns_false_when_request_fails(self, api_client, mocker):
+        client, _ = api_client
+        mocker.patch.object(
+            client,
+            'request',
+            new_callable=mocker.AsyncMock,
+            side_effect=httpx.RequestError('network error'),
+        )
+
+        assert await client.is_active('sensor-123') is False
+
+    @pytest.mark.asyncio
+    async def test_is_active_returns_false_for_invalid_json(self, api_client, mocker):
+        client, _ = api_client
+        response = mocker.MagicMock()
+        response.json.side_effect = ValueError('invalid JSON')
+        mocker.patch.object(
+            client,
+            'request',
+            new_callable=mocker.AsyncMock,
+            return_value=response,
+        )
+
+        assert await client.is_active('sensor-123') is False

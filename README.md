@@ -79,6 +79,8 @@ HomeIotManager は Podman Quadlet とユーザー systemd サービスで動作�
 - `HUE_BRIDGE_IP`, `HUE_API_USER`, `HUE_ON_SCENE_ID`: Philips Hue 接続情報
 - `IFTTT_WEBHOOK_KEY`: IFTTT Webhook キー
 - `SWITCHBOT_WEBHOOK_TOKEN`: SwitchBot Webhook 検証トークン
+- `SWITCHBOT_API_TOKEN`, `SWITCHBOT_API_SECRET`: SwitchBot OpenAPI 認証情報
+- `PRESENCE_SENSOR_DEVICE_ID`: 死活監視対象の Presence Sensor の device ID
 
 ### サービスの操作
 

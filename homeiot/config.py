@@ -23,6 +23,9 @@ class Config:
         self.hue_on_scene_id: str = os.getenv('HUE_ON_SCENE_ID', '')
         self.ifttt_webhook_key: str = os.getenv('IFTTT_WEBHOOK_KEY', '')
         self.switchbot_webhook_token: str = os.getenv('SWITCHBOT_WEBHOOK_TOKEN', '')
+        self.switchbot_api_token: str = os.getenv('SWITCHBOT_API_TOKEN', '')
+        self.switchbot_api_secret: str = os.getenv('SWITCHBOT_API_SECRET', '')
+        self.presence_sensor_device_id: str = os.getenv('PRESENCE_SENSOR_DEVICE_ID', '')
 
         self.validate()
 

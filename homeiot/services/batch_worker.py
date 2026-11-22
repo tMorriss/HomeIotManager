@@ -6,13 +6,15 @@
 import asyncio
 import logging
 import signal
-from typing import Optional
+from datetime import datetime
+from typing import Awaitable, Callable, Optional
 
 from homeiot import constants
 from homeiot.clients.hue import HueClient
 from homeiot.clients.ifttt import IftttClient
+from homeiot.clients.switchbot import SwitchBotApiClient
 from homeiot.config import Config
-from homeiot.db.connector import DBConnector
+from homeiot.db.connector import DBConnector, LastName
 from homeiot.services.home_service import HomeService
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,7 @@ class BatchWorker:
         config: Optional[Config] = None,
         db_connector: Optional[DBConnector] = None,
         home_service: Optional[HomeService] = None,
+        switchbot_api_client: Optional[SwitchBotApiClient] = None,
     ):
         self.config = config or Config()
         self.db = db_connector or DBConnector(self.config)
@@ -40,40 +43,89 @@ class BatchWorker:
             )
         else:
             self.home_service = home_service
-        self.interval = constants.CHECK_INTERVAL_SECONDS
+        self.switchbot_api = switchbot_api_client or SwitchBotApiClient(
+            self.config.switchbot_api_token,
+            self.config.switchbot_api_secret,
+        )
         self.running = False
         self._shutdown_event = asyncio.Event()
 
-    async def run_once(self) -> None:
+    async def run_presence_check_once(self) -> None:
         '''1回分の在宅判定および処理を実行します。'''
         try:
             await self.home_service.handle_presence_check()
         except Exception:
             logger.exception('Error occurred during presence check')
 
+    async def check_presence_sensor_health(self) -> None:
+        '''SwitchBot API でセンサー死活を確認し、確認日時を保存します。'''
+        current_time = datetime.now()
+        try:
+            sensor_is_active = await self.switchbot_api.is_active(
+                self.config.presence_sensor_device_id
+            )
+        except Exception:
+            logger.exception('SwitchBot presence sensor health check failed.')
+            sensor_is_active = False
+
+        status_key = (
+            LastName.PRESENCE_SENSOR_ACTIVE
+            if sensor_is_active
+            else LastName.PRESENCE_SENSOR_INACTIVE
+        )
+        await self.db.set_last(status_key, current_time)
+
+    async def _run_periodic_loop(
+        self,
+        interval: int,
+        operation: Callable[[], Awaitable[None]],
+        loop_name: str,
+    ) -> None:
+        '''指定された処理を停止要求まで周期実行します。'''
+        while self.running:
+            try:
+                await operation()
+            except Exception:
+                logger.exception('Error occurred in %s loop', loop_name)
+
+            try:
+                await asyncio.wait_for(self._shutdown_event.wait(), timeout=interval)
+            except asyncio.TimeoutError:
+                pass
+
     async def start(self) -> None:
-        '''バッチワーカーの常駐ループを開始します。'''
+        '''在室判定と死活監視の常駐ループを開始します。'''
         self.running = True
         self._shutdown_event.clear()
         self._setup_signal_handlers()
-        tasks = set()
-        logger.info('Batch worker started. Running every %d seconds.', self.interval)
+        periodic_loops = [
+            (
+                constants.PRESENCE_CHECK_INTERVAL_SECONDS,
+                self.run_presence_check_once,
+                'presence_check',
+            ),
+            (
+                constants.PRESENCE_SENSOR_HEALTH_CHECK_INTERVAL_SECONDS,
+                self.check_presence_sensor_health,
+                'presence_sensor_health_check',
+            ),
+        ]
+        loop_tasks = [
+            asyncio.create_task(
+                self._run_periodic_loop(interval, operation, loop_name),
+                name=f'homeiot-{loop_name}-loop',
+            )
+            for interval, operation, loop_name in periodic_loops
+        ]
+        logger.info('Batch worker started with %d periodic loops.', len(loop_tasks))
 
         try:
-            while self.running:
-                task = asyncio.create_task(self.run_once())
-                tasks.add(task)
-                task.add_done_callback(tasks.discard)
-
-                try:
-                    await asyncio.wait_for(
-                        self._shutdown_event.wait(), timeout=self.interval
-                    )
-                except asyncio.TimeoutError:
-                    pass
+            await self._shutdown_event.wait()
         finally:
-            if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
+            self.running = False
+            for task in loop_tasks:
+                task.cancel()
+            await asyncio.gather(*loop_tasks, return_exceptions=True)
             await self.stop()
 
     def _setup_signal_handlers(self) -> None:
@@ -96,4 +148,5 @@ class BatchWorker:
         self.running = False
         self._shutdown_event.set()
         await self.db.close()
+        await self.switchbot_api.close()
         logger.info('Batch worker stopped.')

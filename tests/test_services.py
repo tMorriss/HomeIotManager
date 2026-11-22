@@ -83,12 +83,64 @@ class TestHomeService:
         service, mock_config, mock_db, _, _ = home_service_setup
         mock_config.target_phone_ips = []
         mock_db.get_latest_presence_sensor_state.return_value = PresenceSensorValue.DETECTED
+        active_time = datetime(2026, 11, 15, 12, 0, 0)
+
+        async def get_last(name):
+            if name == LastName.PRESENCE_SENSOR_ACTIVE:
+                return active_time
+            if name == LastName.PRESENCE_SENSOR_INACTIVE:
+                return active_time - timedelta(minutes=1)
+            return None
+
+        mock_db.get_last.side_effect = get_last
         mock_ping = mocker.patch('homeiot.clients.ping.is_any_phone_reachable')
 
         assert await service.is_present(motion_detected=False) is True
 
         mock_db.get_latest_presence_sensor_state.assert_awaited_once_with()
         mock_ping.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_is_present_ignores_sensor_when_inactive_is_newer(self, home_service_setup, mocker):
+        service, _, mock_db, _, _ = home_service_setup
+        mock_db.get_latest_presence_sensor_state.return_value = PresenceSensorValue.DETECTED
+        active_time = datetime(2026, 11, 15, 12, 0, 0)
+
+        async def get_last(name):
+            if name == LastName.PRESENCE_SENSOR_ACTIVE:
+                return active_time
+            if name == LastName.PRESENCE_SENSOR_INACTIVE:
+                return active_time + timedelta(minutes=1)
+            return None
+
+        mock_db.get_last.side_effect = get_last
+        mock_ping = mocker.patch(
+            'homeiot.clients.ping.is_any_phone_reachable',
+            new_callable=mocker.AsyncMock,
+            return_value=False,
+        )
+
+        assert await service.is_present(motion_detected=False) is False
+
+        mock_db.get_latest_presence_sensor_state.assert_not_awaited()
+        mock_ping.assert_awaited_once_with(['192.168.1.10'])
+
+    @pytest.mark.asyncio
+    async def test_is_present_ignores_sensor_when_active_time_is_missing(
+        self, home_service_setup, mocker
+    ):
+        service, _, mock_db, _, _ = home_service_setup
+        mock_db.get_latest_presence_sensor_state.return_value = PresenceSensorValue.DETECTED
+        mock_ping = mocker.patch(
+            'homeiot.clients.ping.is_any_phone_reachable',
+            new_callable=mocker.AsyncMock,
+            return_value=False,
+        )
+
+        assert await service.is_present(motion_detected=False) is False
+
+        mock_db.get_latest_presence_sensor_state.assert_not_awaited()
+        mock_ping.assert_awaited_once_with(['192.168.1.10'])
 
     def test_is_lighting_time(self, home_service_setup, mocker):
         service, _, _, _, _ = home_service_setup

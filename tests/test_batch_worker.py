@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from homeiot.db.connector import LastName
 from homeiot.services.batch_worker import BatchWorker
 
 
@@ -20,6 +21,9 @@ def mock_env(monkeypatch):
     monkeypatch.setenv('HUE_ON_SCENE_ID', 'scene1')
     monkeypatch.setenv('IFTTT_WEBHOOK_KEY', 'iftttkey')
     monkeypatch.setenv('SWITCHBOT_WEBHOOK_TOKEN', 'token123')
+    monkeypatch.setenv('SWITCHBOT_API_TOKEN', 'api-token')
+    monkeypatch.setenv('SWITCHBOT_API_SECRET', 'api-secret')
+    monkeypatch.setenv('PRESENCE_SENSOR_DEVICE_ID', 'sensor-123')
 
 
 @pytest.mark.asyncio
@@ -32,7 +36,6 @@ class TestBatchWorker:
         assert worker.config is not None
         assert worker.db is not None
         assert worker.home_service is not None
-        assert worker.interval == 10
         assert worker.running is False
 
     async def test_init_custom(self):
@@ -49,33 +52,81 @@ class TestBatchWorker:
         assert worker.config == mock_config
         assert worker.db == mock_db
         assert worker.home_service == mock_service
-        assert worker.interval == 10
 
-    async def test_run_once_success(self):
-        '''run_once が home_service.handle_presence_check を呼び出すことの検証'''
+    async def test_run_presence_check_once_success(self):
+        '''run_presence_check_once が home_service.handle_presence_check を呼び出すことの検証'''
         mock_service = AsyncMock()
         worker = BatchWorker(home_service=mock_service)
 
-        await worker.run_once()
+        await worker.run_presence_check_once()
         mock_service.handle_presence_check.assert_awaited_once()
 
-    async def test_run_once_exception_handled(self, caplog):
-        '''run_once 内での例外発生時にログが出力され、例外が捕捉されることの検証'''
+    @pytest.mark.parametrize(
+        ('active', 'last_name'),
+        [
+            (True, LastName.PRESENCE_SENSOR_ACTIVE),
+            (False, LastName.PRESENCE_SENSOR_INACTIVE),
+        ],
+    )
+    async def test_check_presence_sensor_health_records_status(self, active, last_name):
+        mock_config = MagicMock()
+        mock_config.switchbot_api_token = 'api-token'
+        mock_config.switchbot_api_secret = 'api-secret'
+        mock_config.presence_sensor_device_id = 'sensor-123'
+        mock_db = AsyncMock()
+        mock_api = AsyncMock()
+        mock_api.is_active.return_value = active
+        worker = BatchWorker(
+            config=mock_config,
+            db_connector=mock_db,
+            home_service=AsyncMock(),
+            switchbot_api_client=mock_api,
+        )
+
+        await worker.check_presence_sensor_health()
+
+        mock_api.is_active.assert_awaited_once_with('sensor-123')
+        recorded_name, recorded_time = mock_db.set_last.await_args.args
+        assert recorded_name == last_name
+        assert recorded_time is not None
+
+    async def test_check_presence_sensor_health_records_inactive_on_error(self):
+        mock_config = MagicMock()
+        mock_config.presence_sensor_device_id = 'sensor-123'
+        mock_db = AsyncMock()
+        mock_api = AsyncMock()
+        mock_api.is_active.side_effect = RuntimeError('API failure')
+        worker = BatchWorker(
+            config=mock_config,
+            db_connector=mock_db,
+            home_service=AsyncMock(),
+            switchbot_api_client=mock_api,
+        )
+
+        await worker.check_presence_sensor_health()
+
+        mock_db.set_last.assert_awaited_once()
+        assert mock_db.set_last.await_args.args[0] == LastName.PRESENCE_SENSOR_INACTIVE
+
+    async def test_run_presence_check_once_exception_handled(self, caplog):
+        '''在室確認中の例外がログに記録され、捕捉されることの検証'''
         mock_service = AsyncMock()
         mock_service.handle_presence_check.side_effect = Exception('Presence check error')
         worker = BatchWorker(home_service=mock_service)
 
-        await worker.run_once()
+        await worker.run_presence_check_once()
         assert 'Error occurred during presence check' in caplog.text
 
     async def test_start_loop_and_stop(self, monkeypatch):
         '''start 実行後に一定回数ループが動作し、request_stop で安全に停止することの検証'''
         mock_service = AsyncMock()
         mock_db = AsyncMock()
-        monkeypatch.setattr('homeiot.constants.CHECK_INTERVAL_SECONDS', 1)
+        mock_api = AsyncMock()
+        monkeypatch.setattr('homeiot.constants.PRESENCE_CHECK_INTERVAL_SECONDS', 1)
         worker = BatchWorker(
             home_service=mock_service,
             db_connector=mock_db,
+            switchbot_api_client=mock_api,
         )
 
         call_count = 0
@@ -92,7 +143,9 @@ class TestBatchWorker:
 
         assert call_count == 2
         assert worker.running is False
+        mock_api.is_active.assert_awaited_once_with('sensor-123')
         mock_db.close.assert_awaited_once()
+        mock_api.close.assert_awaited_once()
 
     async def test_setup_signal_handlers(self):
         '''_setup_signal_handlers が例外なく実行されることの検証'''

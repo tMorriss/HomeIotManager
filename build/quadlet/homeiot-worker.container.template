@@ -18,6 +18,9 @@ Secret=homeiot_hue_api_user,type=env,target=HUE_API_USER
 Secret=homeiot_hue_on_scene_id,type=env,target=HUE_ON_SCENE_ID
 Secret=homeiot_ifttt_webhook_key,type=env,target=IFTTT_WEBHOOK_KEY
 Secret=homeiot_switchbot_webhook_token,type=env,target=SWITCHBOT_WEBHOOK_TOKEN
+Secret=homeiot_switchbot_api_token,type=env,target=SWITCHBOT_API_TOKEN
+Secret=homeiot_switchbot_api_secret,type=env,target=SWITCHBOT_API_SECRET
+Secret=homeiot_presence_sensor_device_id,type=env,target=PRESENCE_SENSOR_DEVICE_ID
 
 [Service]
 Restart=always
