@@ -19,8 +19,11 @@ class Config:
         self.db_pass: str = os.getenv('DB_PASS', '')
         self.db_name: str = os.getenv('DB_NAME', '')
         self.hue_bridge_ip: str = os.getenv('HUE_BRIDGE_IP', '')
-        self.hue_api_user: str = os.getenv('HUE_API_USER', '')
-        self.hue_on_scene_id: str = os.getenv('HUE_ON_SCENE_ID', '')
+        self.hue_bridge_id: str = os.getenv('HUE_BRIDGE_ID', '')
+        self.hue_application_key: str = os.getenv('HUE_APPLICATION_KEY', '')
+        self.hue_on_grouped_light_resource_id: str = os.getenv('HUE_ON_GROUPED_LIGHT_RESOURCE_ID', '')
+        self.hue_off_grouped_light_resource_id: str = os.getenv('HUE_OFF_GROUPED_LIGHT_RESOURCE_ID', '')
+        self.hue_on_scene_resource_id: str = os.getenv('HUE_ON_SCENE_RESOURCE_ID', '')
         self.ifttt_webhook_key: str = os.getenv('IFTTT_WEBHOOK_KEY', '')
         self.switchbot_webhook_token: str = os.getenv('SWITCHBOT_WEBHOOK_TOKEN', '')
         self.switchbot_api_token: str = os.getenv('SWITCHBOT_API_TOKEN', '')
@@ -39,8 +42,11 @@ class Config:
             ('DB_NAME', self.db_name),
             ('TARGET_PHONE_IPS', self.target_phone_ips),
             ('HUE_BRIDGE_IP', self.hue_bridge_ip),
-            ('HUE_API_USER', self.hue_api_user),
-            ('HUE_ON_SCENE_ID', self.hue_on_scene_id),
+            ('HUE_BRIDGE_ID', self.hue_bridge_id),
+            ('HUE_APPLICATION_KEY', self.hue_application_key),
+            ('HUE_ON_GROUPED_LIGHT_RESOURCE_ID', self.hue_on_grouped_light_resource_id),
+            ('HUE_OFF_GROUPED_LIGHT_RESOURCE_ID', self.hue_off_grouped_light_resource_id),
+            ('HUE_ON_SCENE_RESOURCE_ID', self.hue_on_scene_resource_id),
             ('IFTTT_WEBHOOK_KEY', self.ifttt_webhook_key),
             ('SWITCHBOT_WEBHOOK_TOKEN', self.switchbot_webhook_token),
         ]

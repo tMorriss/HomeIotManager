@@ -53,8 +53,11 @@ class TestCLI:
         monkeypatch.setenv('DB_NAME', 'homeiot')
         monkeypatch.setenv('TARGET_PHONE_IPS', '192.168.111.51')
         monkeypatch.setenv('HUE_BRIDGE_IP', '192.168.111.100')
-        monkeypatch.setenv('HUE_API_USER', 'hueuser')
-        monkeypatch.setenv('HUE_ON_SCENE_ID', 'scene1')
+        monkeypatch.setenv('HUE_BRIDGE_ID', 'bridge-id')
+        monkeypatch.setenv('HUE_APPLICATION_KEY', 'application-key')
+        monkeypatch.setenv('HUE_ON_GROUPED_LIGHT_RESOURCE_ID', 'on-group-id')
+        monkeypatch.setenv('HUE_OFF_GROUPED_LIGHT_RESOURCE_ID', 'off-group-id')
+        monkeypatch.setenv('HUE_ON_SCENE_RESOURCE_ID', 'scene-id')
         monkeypatch.setenv('IFTTT_WEBHOOK_KEY', 'iftttkey')
         monkeypatch.setenv('SWITCHBOT_WEBHOOK_TOKEN', 'token123')
 
@@ -62,6 +65,7 @@ class TestCLI:
             with patch('homeiot.services.batch_worker.BatchWorker') as mock_worker:
                 with patch('asyncio.run') as mock_asyncio_run:
                     globs = {'__name__': '__main__'}
-                    exec(compile(open('homeiot/cli.py').read(), 'homeiot/cli.py', 'exec'), globs)
+                    with open('homeiot/cli.py', encoding='utf-8') as cli_file:
+                        exec(compile(cli_file.read(), 'homeiot/cli.py', 'exec'), globs)
                     mock_worker.assert_called_once()
                     mock_asyncio_run.assert_called_once()

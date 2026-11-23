@@ -174,10 +174,11 @@ CREATE TABLE presence_sensor (
    - `TARGET_PHONE_IPS` に定義された各スマホ IP に対して `ping -c 1 -w 1 <ip>` を実行。
    - 1台でも疎通成功（終了コード 0）すれば「スマホ在宅」と判定。
 2. **Philips Hue クライアント (`homeiot.clients.hue`)**:
-   - Hue ブリッジのローカル REST API 経由で通信。
-   - 点灯: 指定グループに対して指定シーンを呼び出し (`PUT /api/<user>/groups/<id>/action`)
-   - 消灯: 指定グループを消灯 (`PUT /api/<user>/groups/<id>/action`)
-   - 状態取得: グループの現在の点灯状態を取得 (`GET /api/<user>/groups/<id>`)
+   - Hue CLIP API v2 を HTTPS で呼び出し、`hue-application-key` ヘッダーで認証する。
+   - URL の接続先は `HUE_BRIDGE_IP` とし、`HUE_BRIDGE_ID` を HTTP Host と TLS SNI に設定する。DNS は利用しない。
+   - `ca/huebridge_cacert_bundle.pem` を信頼 CA として証明書を検証する。
+   - 点灯: `HUE_ON_SCENE_RESOURCE_ID` の v2 `scene` リソースを `recall.action=active` で呼び出す。
+   - 消灯・状態取得: `HUE_OFF_GROUPED_LIGHT_RESOURCE_ID` / `HUE_ON_GROUPED_LIGHT_RESOURCE_ID` の v2 `grouped_light` リソースを操作・取得する。
 3. **IFTTT クライアント (`homeiot.clients.ifttt`)**:
    - IFTTT Webhook を介して以下のイベントをトリガー：
      - `start_roomy`: ルンバの清掃開始
@@ -211,8 +212,11 @@ CREATE TABLE presence_sensor (
 | `DB_NAME` | **必須** | データベース名 |
 | `TARGET_PHONE_IPS` | **必須** | 在宅判定対象スマホのIPアドレス（カンマ区切り。例: `<phone-ip-1>,<phone-ip-2>`） |
 | `HUE_BRIDGE_IP` | **必須** | Philips Hue ブリッジの IP アドレス |
-| `HUE_API_USER` | **必須** | Philips Hue の API ユーザーキー（ハッシュ文字列） |
-| `HUE_ON_SCENE_ID` | **必須** | 帰宅時に呼び出すシーン ID |
+| `HUE_BRIDGE_ID` | **必須** | TLS 証明書に一致する Hue ブリッジ ID。Host / SNI に使用 |
+| `HUE_APPLICATION_KEY` | **必須** | Hue CLIP API v2 の application key |
+| `HUE_ON_GROUPED_LIGHT_RESOURCE_ID` | **必須** | 帰宅・点灯状態確認に使う v2 `grouped_light` リソース ID |
+| `HUE_OFF_GROUPED_LIGHT_RESOURCE_ID` | **必須** | 外出時消灯に使う v2 `grouped_light` リソース ID |
+| `HUE_ON_SCENE_RESOURCE_ID` | **必須** | 帰宅時に呼び出す v2 `scene` リソース ID |
 | `IFTTT_WEBHOOK_KEY` | **必須** | IFTTT Webhook サービスの秘密キー |
 | `SWITCHBOT_WEBHOOK_TOKEN` | **必須** | SwitchBot Webhook リクエスト検証用トークン |
 | `SWITCHBOT_API_TOKEN` | **必須** | SwitchBot OpenAPI v1.1 の Open Token |
@@ -233,8 +237,7 @@ CREATE TABLE presence_sensor (
 | `HUE_ON_END_HOUR` | `6` | 自動点灯を終了する時刻（6時） |
 | `ROOMY_SLEEP_START_HOUR` | `22` | ルンバ稼働を禁止する夜間開始時刻（22時） |
 | `ROOMY_SLEEP_END_HOUR` | `6` | ルンバ稼働を禁止する早朝終了時刻（6時） |
-| `HUE_ON_GROUP_ID` | `'2'` | 帰宅時点灯対象の Hue グループ ID |
-| `HUE_OFF_GROUP_ID` | `'3'` | 外出時消灯対象の Hue グループ ID |
+| `HUE_API_TIMEOUT_SECONDS` | `5.0` | Hue CLIP API v2 の HTTP タイムアウト（秒） |
 | `WEB_PORT` | `8080` | Web コンテナ内のリッスンポート（ホスト側は `8082`） |
 | `JAPAN_TIMEZONE` | UTC+09:00 | SwitchBot `timeOfSample` を日本時間の `DATETIME` に変換するタイムゾーン |
 

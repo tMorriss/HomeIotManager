@@ -19,7 +19,9 @@ class TestHomeService:
     def home_service_setup(self, mocker):
         mock_config = mocker.MagicMock(spec=Config)
         mock_config.target_phone_ips = ['192.168.1.10']
-        mock_config.hue_on_scene_id = 'scene-123'
+        mock_config.hue_on_scene_resource_id = 'scene-resource-id'
+        mock_config.hue_on_grouped_light_resource_id = 'on-group-resource-id'
+        mock_config.hue_off_grouped_light_resource_id = 'off-group-resource-id'
         mock_db = mocker.MagicMock()
         mock_db.get_roomy_lock = mocker.AsyncMock(return_value=None)
         mock_db.get_last = mocker.AsyncMock(return_value=None)
@@ -230,9 +232,7 @@ class TestHomeService:
         mock_db.set_last.assert_any_call(LastName.IN, now)
         mock_db.set_last.assert_any_call(LastName.OUT, now)
         mock_ifttt_client.dock_roomy.assert_called_once()
-        mock_hue_client.activate_scene.assert_called_once_with(
-            constants.HUE_ON_GROUP_ID, 'scene-123'
-        )
+        mock_hue_client.activate_scene.assert_called_once_with('scene-resource-id')
         mock_ifttt_client.turn_on_ceiling_light.assert_called_once()
         assert mock_db.add_in_out_log.await_args_list == [
             mocker.call(InOutValue.OUT, last_in),
@@ -367,8 +367,8 @@ class TestHomeService:
         mock_db.add_in_out_log.assert_not_called()
 
         # Light turning off
-        mock_hue_client.is_any_on.assert_awaited_once_with(constants.HUE_ON_GROUP_ID)
-        mock_hue_client.turn_off_group.assert_called_once_with(constants.HUE_OFF_GROUP_ID)
+        mock_hue_client.is_any_on.assert_awaited_once_with('on-group-resource-id')
+        mock_hue_client.turn_off_group.assert_called_once_with('off-group-resource-id')
         mock_ifttt_client.turn_off_ceiling_light.assert_called_once()
 
         # Roomy start

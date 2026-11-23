@@ -84,7 +84,9 @@ class TestHueClient:
         mock_async_client = mocker.MagicMock(spec=httpx.AsyncClient)
         mock_async_client.is_closed = False
         mock_async_client.aclose = mocker.AsyncMock()
-        client = HueClient('192.168.1.100', 'test-user', client=mock_async_client)
+        client = HueClient(
+            '192.168.1.100', 'test-bridge-id', 'test-application-key', client=mock_async_client
+        )
         return client, mock_async_client
 
     @pytest.mark.asyncio
@@ -94,11 +96,13 @@ class TestHueClient:
         mock_res.raise_for_status.return_value = None
         mock_async_client.put = mocker.AsyncMock(return_value=mock_res)
 
-        res = await client.activate_scene('2', 'scene-123')
+        res = await client.activate_scene('scene-123')
         assert res is True
         mock_async_client.put.assert_called_once_with(
-            'http://192.168.1.100/api/test-user/groups/2/action',
-            json={'scene': 'scene-123'},
+            'https://192.168.1.100/clip/v2/resource/scene/scene-123',
+            json={'recall': {'action': 'active'}},
+            headers={'hue-application-key': 'test-application-key', 'Host': 'test-bridge-id'},
+            extensions={'sni_hostname': 'test-bridge-id'},
             timeout=5.0,
         )
 
@@ -106,7 +110,7 @@ class TestHueClient:
     async def test_activate_scene_failure(self, hue_setup, mocker):
         client, mock_async_client = hue_setup
         mock_async_client.put = mocker.AsyncMock(side_effect=httpx.RequestError('Error'))
-        res = await client.activate_scene('2', 'scene-123')
+        res = await client.activate_scene('scene-123')
         assert res is False
 
     @pytest.mark.asyncio
@@ -119,8 +123,10 @@ class TestHueClient:
         res = await client.turn_off_group('3')
         assert res is True
         mock_async_client.put.assert_called_once_with(
-            'http://192.168.1.100/api/test-user/groups/3/action',
-            json={'on': False},
+            'https://192.168.1.100/clip/v2/resource/grouped_light/3',
+            json={'on': {'on': False}},
+            headers={'hue-application-key': 'test-application-key', 'Host': 'test-bridge-id'},
+            extensions={'sni_hostname': 'test-bridge-id'},
             timeout=5.0,
         )
 
@@ -136,13 +142,15 @@ class TestHueClient:
         client, mock_async_client = hue_setup
         mock_res = mocker.MagicMock()
         mock_res.raise_for_status.return_value = None
-        mock_res.json.return_value = {'action': {'on': True}}
+        mock_res.json.return_value = {'data': [{'id': 'group-uuid', 'on': {'on': True}}]}
         mock_async_client.get = mocker.AsyncMock(return_value=mock_res)
 
         data = await client.get_group('2')
-        assert data == {'action': {'on': True}}
+        assert data == {'id': 'group-uuid', 'on': {'on': True}}
         mock_async_client.get.assert_called_once_with(
-            'http://192.168.1.100/api/test-user/groups/2',
+            'https://192.168.1.100/clip/v2/resource/grouped_light/2',
+            headers={'hue-application-key': 'test-application-key', 'Host': 'test-bridge-id'},
+            extensions={'sni_hostname': 'test-bridge-id'},
             timeout=5.0,
         )
 
@@ -157,9 +165,9 @@ class TestHueClient:
     async def test_is_any_on(self, hue_setup, mocker):
         client, _ = hue_setup
         mocker.patch.object(HueClient, 'get_group', side_effect=[
-            {'state': {'any_on': True}},
-            {'state': {'any_on': False}},
-            {'state': {}},
+            {'on': {'on': True}},
+            {'on': {'on': False}},
+            {'on': {}},
             None,
         ])
 
@@ -176,9 +184,12 @@ class TestHueClient:
         mock_created_client.aclose = mocker.AsyncMock()
         mock_async_client_cls.return_value = mock_created_client
 
-        hue = HueClient('192.168.1.100', 'test-user')
+        hue = HueClient('192.168.1.100', 'test-bridge-id', 'test-application-key')
         _ = hue.client
-        mock_async_client_cls.assert_called_once()
+        mock_async_client_cls.assert_called_once_with(
+            verify=constants.HUE_CA_BUNDLE_PATH,
+            headers={'hue-application-key': 'test-application-key', 'Host': 'test-bridge-id'},
+        )
 
         await hue.close()
         mock_created_client.aclose.assert_called_once()

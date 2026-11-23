@@ -123,9 +123,7 @@ class HomeService:
             if self.is_lighting_time(current_time):
                 tasks.extend(
                     [
-                        self.hue_client.activate_scene(
-                            constants.HUE_ON_GROUP_ID, self.config.hue_on_scene_id
-                        ),
+                        self.hue_client.activate_scene(self.config.hue_on_scene_resource_id),
                         self.ifttt_client.turn_on_ceiling_light(),
                     ]
                 )
@@ -197,12 +195,12 @@ class HomeService:
             return
 
         logger.info('Turning off lights after threshold.')
-        await self.hue_client.turn_off_group(constants.HUE_OFF_GROUP_ID)
+        await self.hue_client.turn_off_group(self.config.hue_off_grouped_light_resource_id)
         await self.ifttt_client.turn_off_ceiling_light()
 
     async def _record_hue_off_if_lights_are_off(self, current_time: datetime) -> None:
-        '''グループ2が消灯状態の場合、消灯確認時刻 `hue_off` を更新します。'''
-        hue_is_on = await self.hue_client.is_any_on(constants.HUE_ON_GROUP_ID)
+        '''点灯対象グループが消灯状態の場合、消灯確認時刻 `hue_off` を更新します。'''
+        hue_is_on = await self.hue_client.is_any_on(self.config.hue_on_grouped_light_resource_id)
         if hue_is_on is False:
             await self.db.set_last(LastName.HUE_OFF, current_time)
 

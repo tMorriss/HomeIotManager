@@ -43,7 +43,11 @@ def create_app(
         switchbot_client = SwitchBotClient(config.switchbot_webhook_token)
 
     if home_service is None:
-        hue_client = HueClient(config.hue_bridge_ip, config.hue_api_user)
+        hue_client = HueClient(
+            config.hue_bridge_ip,
+            config.hue_bridge_id,
+            config.hue_application_key,
+        )
         ifttt_client = IftttClient(config.ifttt_webhook_key)
         home_service = HomeService(
             config=config,
