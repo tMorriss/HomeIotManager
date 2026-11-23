@@ -340,6 +340,20 @@ class TestSwitchBotClient:
         with pytest.raises(SwitchBotWebhookError, match='invalid timeOfSample'):
             client.parse_webhook_payload(payload)
 
+    def test_parse_webhook_payload_rejects_out_of_range_sample_time(self, client):
+        payload = {
+            'eventType': 'changeReport',
+            'eventVersion': '1',
+            'context': {
+                'deviceType': 'Presence Sensor',
+                'detectionState': 'DETECTED',
+                'timeOfSample': 10 ** 30,
+            },
+        }
+
+        with pytest.raises(SwitchBotWebhookError, match='invalid timeOfSample'):
+            client.parse_webhook_payload(payload)
+
     def test_parse_webhook_payload_invalid_structure(self, client):
         with pytest.raises(SwitchBotWebhookError, match='invalid payload'):
             client.parse_webhook_payload('not a dict')
@@ -436,6 +450,16 @@ class TestSwitchBotApiClient:
             'headers': {'X-Test': 'value', 'Authorization': 'api-token'},
             'json': {'command': 'turnOn'},
         }
+
+    @pytest.mark.asyncio
+    async def test_request_logs_and_reraises_http_error(self, api_client, caplog):
+        client, http_client = api_client
+        http_client.request.side_effect = httpx.RequestError('network error')
+
+        with pytest.raises(httpx.RequestError, match='network error'):
+            await client.request('GET', '/v1.1/devices/device-123/status')
+
+        assert 'SwitchBot API request failed: GET /v1.1/devices/device-123/status' in caplog.text
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(('status_code', 'is_active'), [(100, True), (190, False), (None, False)])

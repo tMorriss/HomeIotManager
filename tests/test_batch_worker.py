@@ -1,5 +1,6 @@
 '''HomeIotManager - BatchWorker 単体テスト'''
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -119,6 +120,24 @@ class TestBatchWorker:
 
         await worker.run_presence_check_once()
         assert 'Error occurred during presence check' in caplog.text
+
+    async def test_periodic_loop_logs_operation_error_and_continues(self, monkeypatch, caplog):
+        worker = BatchWorker()
+        worker.running = True
+
+        async def fail_operation():
+            raise RuntimeError('periodic operation failed')
+
+        async def stop_after_first_wait(awaitable, timeout):
+            awaitable.close()
+            worker.running = False
+            raise asyncio.TimeoutError
+
+        monkeypatch.setattr('asyncio.wait_for', stop_after_first_wait)
+
+        await worker._run_periodic_loop(1, fail_operation, 'test_loop')
+
+        assert 'Error occurred in test_loop loop' in caplog.text
 
     async def test_start_loop_and_stop(self, monkeypatch):
         '''start 実行後に一定回数ループが動作し、request_stop で安全に停止することの検証'''
