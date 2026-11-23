@@ -5,7 +5,9 @@ echo "=== HomeIotManager Deployment Script ==="
 
 # 1. [skip ci] コミットチェック
 COMMIT_MSG=$(git log -1 --pretty=%B 2>/dev/null || echo "")
-if echo "${COMMIT_MSG}" | grep -q "\[skip ci\]"; then
+if [ -n "${GIT_COMMIT:-}" ] && [ -n "${GIT_PREVIOUS_COMMIT:-}" ] \
+    && [ "${GIT_COMMIT}" != "${GIT_PREVIOUS_COMMIT}" ] \
+    && echo "${COMMIT_MSG}" | grep -q "\[skip ci\]"; then
     echo "Found [skip ci] in commit message. Skipping deployment."
     exit 0
 fi
