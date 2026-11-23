@@ -58,6 +58,8 @@ tox -e lint
 
 ### 単体テストの実行
 
+[![codecov](https://codecov.io/gh/tMorriss/HomeIotManager/graph/badge.svg?token=1DVQGPKAX9)](https://codecov.io/gh/tMorriss/HomeIotManager)
+
 ```bash
 # 単体テスト (unittest & coverage.py) の実行
 tox -e unittest
