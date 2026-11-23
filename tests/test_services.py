@@ -240,6 +240,40 @@ class TestHomeService:
         ]
 
     @pytest.mark.asyncio
+    async def test_arrival_sequence_reraises_task_error_after_gather(self, home_service_setup):
+        service, _, mock_db, _, mock_ifttt_client = home_service_setup
+        now = datetime(2026, 9, 20, 19, 0, 0)
+        mock_db.add_in_out_log.side_effect = RuntimeError('log write failed')
+
+        with pytest.raises(RuntimeError, match='log write failed'):
+            await service._handle_in_state(now - timedelta(minutes=10), now)
+
+        mock_ifttt_client.dock_roomy.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_departure_sequence_reraises_task_error_after_gather(self, home_service_setup, mocker):
+        service, _, _, _, _ = home_service_setup
+        now = datetime(2026, 9, 20, 19, 0, 0)
+        last_in = now - timedelta(minutes=10)
+        turn_off = mocker.patch.object(
+            service,
+            '_check_and_turn_off_lights',
+            new_callable=mocker.AsyncMock,
+            side_effect=RuntimeError('light check failed'),
+        )
+        start_roomy = mocker.patch.object(
+            service,
+            '_check_and_start_roomy',
+            new_callable=mocker.AsyncMock,
+        )
+
+        with pytest.raises(RuntimeError, match='light check failed'):
+            await service._handle_out_state(last_in, None, None, now)
+
+        turn_off.assert_awaited_once_with(None, now)
+        start_roomy.assert_awaited_once_with(last_in, now)
+
+    @pytest.mark.asyncio
     async def test_handle_presence_check_present_returning_daytime_no_lighting(self, home_service_setup, mocker):
         service, _, mock_db, mock_hue_client, mock_ifttt_client = home_service_setup
         mocker.patch.object(HomeService, 'is_present', return_value=True)

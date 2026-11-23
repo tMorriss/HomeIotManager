@@ -100,6 +100,52 @@ class TestWebApp:
         mock_home_service.is_present.assert_not_called()
         mock_home_service.handle_presence_check.assert_not_called()
 
+    def test_switchbot_webhook_handles_invalid_json_body(self, app_setup):
+        _, client, _, _, mock_switchbot_client, _ = app_setup
+        mock_switchbot_client.verify_token.return_value = True
+        mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
+            device_type='OtherDevice',
+            detection_state='UNKNOWN',
+        )
+
+        response = client.post(
+            '/switchbot/all?token=secret_token',
+            content='{invalid json',
+            headers={'content-type': 'application/json'},
+        )
+
+        assert response.status_code == 204
+        mock_switchbot_client.parse_webhook_payload.assert_called_once_with({})
+
+    def test_switchbot_webhook_ignores_unsupported_presence_sensor_state(self, app_setup, caplog):
+        _, client, _, mock_db, mock_switchbot_client, _ = app_setup
+        mock_switchbot_client.verify_token.return_value = True
+        mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
+            device_type='Presence Sensor',
+            detection_state='UNKNOWN',
+        )
+
+        response = client.post('/switchbot/all?token=secret_token', json={})
+
+        assert response.status_code == 204
+        assert 'Ignoring unsupported Presence Sensor state: UNKNOWN' in caplog.text
+        mock_db.add_presence_sensor_log.assert_not_awaited()
+
+    def test_switchbot_webhook_motion_triggers_presence_check_when_phone_absent(self, app_setup):
+        _, client, _, _, mock_switchbot_client, mock_home_service = app_setup
+        mock_switchbot_client.verify_token.return_value = True
+        mock_switchbot_client.parse_webhook_payload.return_value = SwitchBotWebhookResult(
+            device_type='WoPresence',
+            detection_state='DETECTED',
+        )
+        mock_home_service.is_present.return_value = False
+
+        response = client.post('/switchbot/all?token=secret_token', json={})
+
+        assert response.status_code == 204
+        mock_home_service.is_present.assert_awaited_once_with()
+        mock_home_service.handle_presence_check.assert_awaited_once_with(motion_detected=True)
+
     @pytest.mark.parametrize(
         ('state', 'value'),
         [
