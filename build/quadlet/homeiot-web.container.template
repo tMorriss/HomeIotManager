@@ -14,8 +14,11 @@ Secret=homeiot_db_pass,type=env,target=DB_PASS
 Secret=homeiot_db_name,type=env,target=DB_NAME
 Secret=homeiot_target_phone_ips,type=env,target=TARGET_PHONE_IPS
 Secret=homeiot_hue_bridge_ip,type=env,target=HUE_BRIDGE_IP
-Secret=homeiot_hue_api_user,type=env,target=HUE_API_USER
-Secret=homeiot_hue_on_scene_id,type=env,target=HUE_ON_SCENE_ID
+Secret=homeiot_hue_bridge_id,type=env,target=HUE_BRIDGE_ID
+Secret=homeiot_hue_application_key,type=env,target=HUE_APPLICATION_KEY
+Secret=homeiot_hue_on_grouped_light_resource_id,type=env,target=HUE_ON_GROUPED_LIGHT_RESOURCE_ID
+Secret=homeiot_hue_off_grouped_light_resource_id,type=env,target=HUE_OFF_GROUPED_LIGHT_RESOURCE_ID
+Secret=homeiot_hue_on_scene_resource_id,type=env,target=HUE_ON_SCENE_RESOURCE_ID
 Secret=homeiot_ifttt_webhook_key,type=env,target=IFTTT_WEBHOOK_KEY
 Secret=homeiot_switchbot_webhook_token,type=env,target=SWITCHBOT_WEBHOOK_TOKEN
 

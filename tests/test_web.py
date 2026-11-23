@@ -200,7 +200,8 @@ class TestWebApp:
         mock_cfg = mocker.MagicMock()
         mock_cfg.switchbot_webhook_token = 'token'
         mock_cfg.hue_bridge_ip = '192.168.1.1'
-        mock_cfg.hue_api_user = 'user'
+        mock_cfg.hue_bridge_id = 'bridge-id'
+        mock_cfg.hue_application_key = 'application-key'
         mock_cfg.ifttt_webhook_key = 'key'
         mock_config_cls.return_value = mock_cfg
 
@@ -209,7 +210,7 @@ class TestWebApp:
         mock_config_cls.assert_called_once()
         mock_db_cls.assert_called_once_with(mock_cfg)
         mock_sb_cls.assert_called_once_with('token')
-        mock_hue_cls.assert_called_once_with('192.168.1.1', 'user')
+        mock_hue_cls.assert_called_once_with('192.168.1.1', 'bridge-id', 'application-key')
         mock_ifttt_cls.assert_called_once_with('key')
         mock_hs_cls.assert_called_once()
 

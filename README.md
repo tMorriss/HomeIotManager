@@ -78,7 +78,8 @@ HomeIotManager は Podman Quadlet とユーザー systemd サービスで動作�
 
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`: MySQL 接続情報
 - `TARGET_PHONE_IPS`: 在宅判定対象のスマートフォン IP アドレス（カンマ区切り）
-- `HUE_BRIDGE_IP`, `HUE_API_USER`, `HUE_ON_SCENE_ID`: Philips Hue 接続情報
+- `HUE_BRIDGE_IP`, `HUE_BRIDGE_ID`, `HUE_APPLICATION_KEY`: Philips Hue 接続情報
+- `HUE_ON_GROUPED_LIGHT_RESOURCE_ID`, `HUE_OFF_GROUPED_LIGHT_RESOURCE_ID`, `HUE_ON_SCENE_RESOURCE_ID`: Hue v2 のリソース ID
 - `IFTTT_WEBHOOK_KEY`: IFTTT Webhook キー
 - `SWITCHBOT_WEBHOOK_TOKEN`: SwitchBot Webhook 検証トークン
 - `SWITCHBOT_API_TOKEN`, `SWITCHBOT_API_SECRET`: SwitchBot OpenAPI 認証情報

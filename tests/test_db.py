@@ -23,8 +23,11 @@ class TestDBConnector:
             'DB_NAME': 'mock_db',
             'TARGET_PHONE_IPS': '192.168.1.10',
             'HUE_BRIDGE_IP': '192.168.1.20',
-            'HUE_API_USER': 'hueuser',
-            'HUE_ON_SCENE_ID': 'scene123',
+            'HUE_BRIDGE_ID': 'bridge-id',
+            'HUE_APPLICATION_KEY': 'application-key',
+            'HUE_ON_GROUPED_LIGHT_RESOURCE_ID': 'on-group-id',
+            'HUE_OFF_GROUPED_LIGHT_RESOURCE_ID': 'off-group-id',
+            'HUE_ON_SCENE_RESOURCE_ID': 'scene-id',
             'IFTTT_WEBHOOK_KEY': 'iftttkey',
             'SWITCHBOT_WEBHOOK_TOKEN': 'swtoken',
         }

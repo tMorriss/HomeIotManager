@@ -33,7 +33,11 @@ class BatchWorker:
         self.config = config or Config()
         self.db = db_connector or DBConnector(self.config)
         if home_service is None:
-            hue_client = HueClient(self.config.hue_bridge_ip, self.config.hue_api_user)
+            hue_client = HueClient(
+                self.config.hue_bridge_ip,
+                self.config.hue_bridge_id,
+                self.config.hue_application_key,
+            )
             ifttt_client = IftttClient(self.config.ifttt_webhook_key)
             self.home_service = HomeService(
                 config=self.config,
